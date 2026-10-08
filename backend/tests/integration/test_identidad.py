@@ -119,3 +119,24 @@ def test_listar_ejercicios_del_contexto(contexto, client):
     r = client.get("/api/v1/ejercicios", headers=h)
     assert r.status_code == 200
     assert any(e["id"] == ctx["ejercicio"].id for e in r.json())
+
+
+def test_crear_ejercicio_siembra_pgc_base(contexto, client, session):
+    from app.models import Cuenta
+    from app.pgc import PGC_BASE
+
+    ctx = contexto()
+    h = {**ctx["headers"], "X-Empresa-Id": str(ctx["empresa"].id)}
+    r = client.post(
+        "/api/v1/ejercicios",
+        headers=h,
+        json={"anio": 2029, "fecha_inicio": "2029-01-01", "fecha_fin": "2029-12-31"},
+    )
+    assert r.status_code == 201
+    ej_id = r.json()["id"]
+    cuentas = session.exec(select(Cuenta).where(Cuenta.ejercicio_id == ej_id)).all()
+    assert len(cuentas) == len(PGC_BASE)
+    by_codigo = {c.codigo: c for c in cuentas}
+    assert by_codigo["1"].nivel == 1
+    assert by_codigo["43"].nivel == 2
+    assert by_codigo["430"].nivel == 3

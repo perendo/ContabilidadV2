@@ -6,7 +6,8 @@ Requisito: contraseñas >= 8 caracteres, hash argon2. Idempotente.
 from sqlmodel import Session, select
 
 from app.db import engine
-from app.models import Usuario
+from app.models import Ejercicio, Usuario
+from app.pgc import sembrar_pgc
 from app.services.seguridad import hash_password
 
 SEEDS = [
@@ -36,10 +37,22 @@ def crear_usuarios(session: Session) -> None:
     session.commit()
 
 
+def sembrar_pgc_ejercicios(session: Session) -> int:
+    """Rellena el cuadro PGC base en ejercicios creados sin cuentas. Idempotente."""
+    total = 0
+    for ejercicio in session.exec(select(Ejercicio)).all():
+        total += sembrar_pgc(session, ejercicio.id)
+    session.commit()
+    return total
+
+
 def main() -> None:
     with Session(engine) as session:
         crear_usuarios(session)
+        cuentas = sembrar_pgc_ejercicios(session)
         print("Seed completado. Usuarios: " + ", ".join(s["username"] for s in SEEDS))
+        if cuentas:
+            print(f"PGC base sembrado en ejercicios existentes: {cuentas} cuentas")
 
 
 if __name__ == "__main__":

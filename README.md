@@ -7,8 +7,9 @@ La lógica contable (validaciones, cuadre, correlativos, cierres de periodo y ai
 ## Características (Fase 1)
 
 - **Multi-tenant lógico**: Usuario → Empresa → Ejercicio → Cuenta / Asiento → Apunte. Contexto activo por cabeceras `X-Empresa-Id` / `X-Ejercicio-Id` con verificación de pertenencia.
+- **Selección de contexto**: tras el login, pantalla `/seleccion` para elegir o **crear** empresa (solo `admin`) y ejercicio antes de operar.
 - **Autenticación**: JWT (PyJWT) + hash argon2. Login devuelve `Authorization: Bearer` y cookie httpOnly `SameSite=Lax`.
-- **Plan de cuentas** por ejercicio (código PGC, nombre, nivel) con unicidad `(ejercicio_id, codigo)`.
+- **Plan de cuentas** por ejercicio con **PGC base curado** (niveles 1-3, grupos 1-7) **sembrado automáticamente** al crear el ejercicio; el usuario añade **subcuentas** (nivel 4+) sobre él en vista de árbol. Códigos numéricos con unicidad `(ejercicio_id, codigo)`.
 - **Asientos de 2 a N líneas** con flujo **borrador → asentado**: el borrador admite descuadre; el `asentar` exige ΣDebe = ΣHaber y asigna un número correlativo atómico sin huecos.
 - **Inmutabilidad**: los asientos asentados no se editan ni eliminan (correcciones por extorno en fases posteriores).
 - **Ejercicios cerrados**: bloquean cualquier escritura (409).
@@ -59,7 +60,7 @@ Aplica migraciones, crea usuarios de desarrollo y arranca el servidor (desde `ba
 
 - API: http://127.0.0.1:8000 · Swagger: http://127.0.0.1:8000/docs
 - Estado: `GET /api/v1/health` → `{ "status": "ok", "db": "wal", ... }`
-- Usuarios seed: `admin` / `admin-2026` (crea empresas) y `contable` / `contable-2026`.
+- Usuarios seed: `admin` / `admin-2026` (crea empresas) y `contable` / `contable-2026`. El seed también siembra el **PGC base** en ejercicios existentes sin cuentas. Tras el login se abre `/seleccion` para elegir o crear empresa y ejercicio.
 
 ### 2. Frontend
 
@@ -100,9 +101,9 @@ Base path `/api/v1`. Cuerpos JSON; fechas `YYYY-MM-DD`; importes como cadena dec
 | GET | `/empresas` | Empresas del usuario |
 | POST | `/empresas` | Crear empresa (**solo `admin`**) |
 | GET | `/ejercicios` | Ejercicios de la empresa activa |
-| POST | `/ejercicios` | Crear ejercicio |
+| POST | `/ejercicios` | Crear ejercicio (siembra el **PGC base**) |
 | GET | `/cuentas` | Plan de cuentas del ejercicio (paginado/filtrable) |
-| POST | `/cuentas` | Alta de cuenta |
+| POST | `/cuentas` | Alta de cuenta / **subcuenta** (nivel 4+) |
 | POST | `/asientos` | Guardar **borrador** (2..N líneas, admite descuadre) |
 | PUT | `/asientos/{id}` | Editar borrador |
 | POST | `/asientos/{id}/asentar` | Borrador → **asentado** (exige ΣDebe = ΣHaber) |
@@ -138,17 +139,18 @@ ContabilidadV2/
 │   │   ├── models/      # SQLModel: identidad y contable
 │   │   ├── schemas/     # Pydantic (request/response)
 │   │   ├── services/    # lógica contable: cuadre, correlativo, identidad, seguridad
+│   │   ├── pgc.py       # PGC base curado (niveles 1-3) + siembra por ejercicio
 │   │   ├── config.py    # settings (pydantic-settings)
 │   │   ├── db.py        # motor SQLite + pragmas WAL
 │   │   ├── main.py      # app FastAPI
-│   │   └── seed.py      # usuarios de desarrollo
+│   │   └── seed.py      # usuarios de desarrollo + backfill del PGC base
 │   ├── alembic/         # migraciones (único camino de evolución del esquema)
 │   ├── tests/           # unit/ e integration/
 │   └── pyproject.toml
 ├── frontend/
 │   ├── src/
-│   │   ├── app/         # App Router: layout, login, dashboard, asientos, diario, cuentas
-│   │   ├── components/  # ContextSelector, FormAsiento, Diario, PlanCuentas
+│   │   ├── app/         # App Router: layout, login, seleccion, dashboard, asientos, diario, cuentas
+│   │   ├── components/  # ContextSelector, FormAsiento, Diario, PlanCuentas (árbol + subcuentas)
 │   │   └── lib/         # api.ts (cliente + contexto), theme.ts, useCargar.ts
 │   ├── tests/           # vitest
 │   └── package.json

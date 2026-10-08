@@ -3,6 +3,7 @@ from sqlmodel import Session
 
 from app.api.errors import ApiError
 from app.models import Ejercicio, Empresa, Usuario, empresa_usuario
+from app.pgc import sembrar_pgc
 
 
 def crear_empresa(session: Session, usuario: Usuario, payload) -> Empresa:
@@ -39,9 +40,11 @@ def crear_ejercicio(session: Session, empresa_id: int, payload) -> Ejercicio:
     )
     session.add(ejercicio)
     try:
-        session.commit()
+        session.flush()
     except IntegrityError:
         session.rollback()
         raise ApiError(409, "El año ya existe en esta empresa") from None
+    sembrar_pgc(session, ejercicio.id)
+    session.commit()
     session.refresh(ejercicio)
     return ejercicio

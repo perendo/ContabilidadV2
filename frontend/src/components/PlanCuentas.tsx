@@ -9,6 +9,7 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  IconButton,
   Skeleton,
   Snackbar,
   Stack,
@@ -18,15 +19,18 @@ import {
   TableHead,
   TableRow,
   TextField,
+  Tooltip,
   Typography,
 } from "@mui/material";
+import AddCircleOutlineIcon from "@mui/icons-material/AddCircleOutline";
 
-import { ApiError, api } from "@/lib/api";
+import { ApiError, api, type Cuenta } from "@/lib/api";
 import { useCargar } from "@/lib/useCargar";
 
 export default function PlanCuentas() {
   const [busqueda, setBusqueda] = useState("");
   const [abierto, setAbierto] = useState(false);
+  const [padre, setPadre] = useState<Cuenta | null>(null);
   const [nueva, setNueva] = useState({ codigo: "", nombre: "", nivel: 4 });
   const [error, setError] = useState<string | null>(null);
 
@@ -35,10 +39,23 @@ export default function PlanCuentas() {
     [busqueda]
   );
 
+  function abrirCuenta() {
+    setPadre(null);
+    setNueva({ codigo: "", nombre: "", nivel: 4 });
+    setAbierto(true);
+  }
+
+  function abrirSubcuenta(cuenta: Cuenta) {
+    setPadre(cuenta);
+    setNueva({ codigo: cuenta.codigo, nombre: "", nivel: Math.min(cuenta.nivel + 1, 5) });
+    setAbierto(true);
+  }
+
   async function crear() {
     try {
       await api.crearCuenta(nueva);
       setAbierto(false);
+      setPadre(null);
       setNueva({ codigo: "", nombre: "", nivel: 4 });
       recargar();
     } catch (e) {
@@ -56,7 +73,7 @@ export default function PlanCuentas() {
           onChange={(e) => setBusqueda(e.target.value)}
           sx={{ flexGrow: 1 }}
         />
-        <Button variant="contained" onClick={() => setAbierto(true)}>
+        <Button variant="contained" onClick={abrirCuenta}>
           Nueva cuenta
         </Button>
       </Stack>
@@ -70,14 +87,36 @@ export default function PlanCuentas() {
               <TableCell>Código</TableCell>
               <TableCell>Nombre</TableCell>
               <TableCell align="right">Nivel</TableCell>
+              <TableCell align="right">Subcuenta</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {data.items.map((c) => (
-              <TableRow key={c.id}>
-                <TableCell>{c.codigo}</TableCell>
-                <TableCell>{c.nombre}</TableCell>
+              <TableRow key={c.id} hover>
+                <TableCell
+                  sx={{
+                    pl: 2 + (c.nivel - 1) * 2.5,
+                    fontFamily: "monospace",
+                    fontWeight: c.nivel <= 2 ? 700 : 400,
+                  }}
+                >
+                  {c.codigo}
+                </TableCell>
+                <TableCell sx={{ fontWeight: c.nivel <= 2 ? 600 : 400 }}>{c.nombre}</TableCell>
                 <TableCell align="right">{c.nivel}</TableCell>
+                <TableCell align="right">
+                  {c.nivel < 5 && (
+                    <Tooltip title={`Añadir subcuenta de ${c.codigo}`}>
+                      <IconButton
+                        size="small"
+                        onClick={() => abrirSubcuenta(c)}
+                        aria-label={`subcuenta-${c.codigo}`}
+                      >
+                        <AddCircleOutlineIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                  )}
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>
@@ -89,12 +128,18 @@ export default function PlanCuentas() {
       )}
 
       <Dialog open={abierto} onClose={() => setAbierto(false)}>
-        <DialogTitle>Nueva cuenta</DialogTitle>
+        <DialogTitle>{padre ? "Nueva subcuenta" : "Nueva cuenta"}</DialogTitle>
         <DialogContent sx={{ display: "flex", flexDirection: "column", gap: 2, pt: 2 }}>
+          {padre && (
+            <Alert severity="info" icon={false}>
+              Subcuenta de <strong>{padre.codigo}</strong> · {padre.nombre}
+            </Alert>
+          )}
           <TextField
             label="Código (solo dígitos)"
             value={nueva.codigo}
             onChange={(e) => setNueva({ ...nueva, codigo: e.target.value })}
+            helperText={padre ? "Se propone el código de la cuenta padre; añade el dígito/s de la subcuenta" : undefined}
           />
           <TextField
             label="Nombre"
