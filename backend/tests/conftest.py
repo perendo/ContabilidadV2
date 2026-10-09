@@ -7,6 +7,8 @@ import pytest
 _tmp_db = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
 _tmp_db.close()
 os.environ["APP_DATABASE_URL"] = f"sqlite:///{_tmp_db.name}"
+os.environ["APP_JWT_SECRET"] = "test-secret-key-32-chars-long-for-testing-only-12345"
+os.environ["APP_ENVIRONMENT"] = "development"
 
 from alembic import command
 from alembic.config import Config

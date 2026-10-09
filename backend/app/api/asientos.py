@@ -1,10 +1,8 @@
 from datetime import date
-
 from fastapi import APIRouter, Query
 from sqlalchemy import func
 from sqlmodel import select
-
-from app.api.deps import EjercicioDep, SessionDep
+from app.api.deps import EjercicioDep, SessionDep, UsuarioDep
 from app.api.errors import ApiError
 from app.models import Apunte, Asiento
 from app.schemas.asientos import (
@@ -36,6 +34,11 @@ def _to_out(asiento: Asiento, session: SessionDep) -> AsientoOut:
         concepto=asiento.concepto,
         estado=asiento.estado,
         apuntes=[ApunteOut(**a) for a in apuntes],
+        creado_por_usuario_id=asiento.creado_por_usuario_id,
+        asentado_por_usuario_id=asiento.asentado_por_usuario_id,
+        created_at=asiento.created_at,
+        asentado_at=asiento.asentado_at,
+        version=asiento.version,
     )
 
 
@@ -63,7 +66,7 @@ def _resumen(asiento: Asiento, session: SessionDep) -> AsientoResumen:
 
 @router.post("", response_model=AsientoOut, status_code=201)
 def crear_borrador(
-    payload: AsientoRequest, session: SessionDep, ejercicio: EjercicioDep
+    payload: AsientoRequest, session: SessionDep, ejercicio: EjercicioDep, usuario: UsuarioDep
 ) -> AsientoOut:
     asiento = svc.guardar_borrador(
         session,
@@ -71,13 +74,18 @@ def crear_borrador(
         payload.fecha,
         payload.concepto,
         [a.model_dump() for a in payload.apuntes],
+        usuario_id=usuario.id,
     )
     return _to_out(asiento, session)
 
 
 @router.put("/{asiento_id}", response_model=AsientoOut)
 def editar_borrador(
-    asiento_id: int, payload: AsientoRequest, session: SessionDep, ejercicio: EjercicioDep
+    asiento_id: int,
+    payload: AsientoRequest,
+    session: SessionDep,
+    ejercicio: EjercicioDep,
+    usuario: UsuarioDep,
 ) -> AsientoOut:
     asiento = _asiento_del_ejercicio(session, asiento_id, ejercicio)
     asiento = svc.editar_borrador(
@@ -86,14 +94,17 @@ def editar_borrador(
         payload.fecha,
         payload.concepto,
         [a.model_dump() for a in payload.apuntes],
+        usuario_id=usuario.id,
     )
     return _to_out(asiento, session)
 
 
 @router.post("/{asiento_id}/asentar", response_model=AsientoOut)
-def asentar(asiento_id: int, session: SessionDep, ejercicio: EjercicioDep) -> AsientoOut:
+def asentar(
+    asiento_id: int, session: SessionDep, ejercicio: EjercicioDep, usuario: UsuarioDep
+) -> AsientoOut:
     asiento = _asiento_del_ejercicio(session, asiento_id, ejercicio)
-    asiento = svc.asentar(session, asiento)
+    asiento = svc.asentar(session, asiento, usuario_id=usuario.id)
     return _to_out(asiento, session)
 
 
@@ -111,12 +122,16 @@ def diario(
         query = query.where(Asiento.fecha >= since)
     if until is not None:
         query = query.where(Asiento.fecha <= until)
-    count_stmt = select(func.count(Asiento.id)).where(Asiento.ejercicio_id == ejercicio, Asiento.estado == "asentado")
+
+    count_stmt = select(func.count(Asiento.id)).where(
+        Asiento.ejercicio_id == ejercicio, Asiento.estado == "asentado"
+    )
     if since is not None:
         count_stmt = count_stmt.where(Asiento.fecha >= since)
     if until is not None:
         count_stmt = count_stmt.where(Asiento.fecha <= until)
     total = session.exec(count_stmt).one()
+
     asientos = session.exec(query.order_by(Asiento.numero).offset(offset).limit(limit)).all()
     return Paginado(
         total=total,
@@ -134,7 +149,9 @@ def borradores(
     limit: int = Query(default=50, ge=1, le=200),
 ) -> Paginado[AsientoResumen]:
     query = select(Asiento).where(Asiento.ejercicio_id == ejercicio, Asiento.estado == "borrador")
-    count_stmt = select(func.count(Asiento.id)).where(Asiento.ejercicio_id == ejercicio, Asiento.estado == "borrador")
+    count_stmt = select(func.count(Asiento.id)).where(
+        Asiento.ejercicio_id == ejercicio, Asiento.estado == "borrador"
+    )
     total = session.exec(count_stmt).one()
     asientos = session.exec(query.order_by(Asiento.fecha.desc()).offset(offset).limit(limit)).all()
     return Paginado(

@@ -11,33 +11,43 @@ import {
   Toolbar,
   ThemeProvider,
   Typography,
-  useMediaQuery,
 } from "@mui/material";
 import LightModeIcon from "@mui/icons-material/LightMode";
 import DarkModeIcon from "@mui/icons-material/DarkMode";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-
 import ContextSelector from "@/components/ContextSelector";
 import { api, getEmpresaId, getEjercicioId } from "@/lib/api";
 import { temaSegunModo } from "@/lib/theme";
 
 export default function Providers({ children }: { children: React.ReactNode }) {
+  const [montado, setMontado] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
-  const prefiereOscuro = useMediaQuery("(prefers-color-scheme: dark)");
-  const [oscuro, setOscuro] = useState(prefiereOscuro);
+  const [oscuro, setOscuro] = useState(false);
   const [estado, setEstado] = useState<"cargando" | "ok" | "anon">("cargando");
 
-  useEffect(() => setOscuro(prefiereOscuro), [prefiereOscuro]);
+  useEffect(() => {
+    setMontado(true);
+    if (typeof window !== "undefined") {
+      const mq = window.matchMedia("(prefers-color-scheme: dark)");
+      setOscuro(mq.matches);
+      const handler = (e: MediaQueryListEvent) => setOscuro(e.matches);
+      mq.addEventListener("change", handler);
+      return () => mq.removeEventListener("change", handler);
+    }
+  }, []);
 
   useEffect(() => {
+    if (!montado) return;
     if (pathname === "/login") {
       setEstado("anon");
       return;
     }
+
     let activo = true;
     setEstado("cargando");
+
     api
       .me()
       .then(() => {
@@ -52,10 +62,11 @@ export default function Providers({ children }: { children: React.ReactNode }) {
         setEstado("anon");
         router.replace("/login");
       });
+
     return () => {
       activo = false;
     };
-  }, [pathname, router]);
+  }, [montado, pathname, router]);
 
   async function salir() {
     try {
@@ -63,6 +74,10 @@ export default function Providers({ children }: { children: React.ReactNode }) {
     } finally {
       router.replace("/login");
     }
+  }
+
+  if (!montado) {
+    return <>{children}</>;
   }
 
   const theme = temaSegunModo(oscuro ? "dark" : "light");

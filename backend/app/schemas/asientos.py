@@ -1,7 +1,6 @@
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 from typing import TypeVar
-
 from pydantic import BaseModel, Field, field_validator
 
 T = TypeVar("T")
@@ -58,6 +57,11 @@ class AsientoOut(BaseModel):
     concepto: str
     estado: str
     apuntes: list[ApunteOut]
+    creado_por_usuario_id: int | None = None
+    asentado_por_usuario_id: int | None = None
+    created_at: datetime | None = None
+    asentado_at: datetime | None = None
+    version: int | None = None
 
 
 class AsientoResumen(BaseModel):

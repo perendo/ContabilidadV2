@@ -1,13 +1,11 @@
-"""Arranca el backend (uvicorn) y el frontend (Next.js) en dos consolas.
-
-Se invoca desde ``start.bat``, que previamente activa el entorno virtual de la
-raíz. Este script aplica las migraciones, siembra los usuarios de desarrollo,
-abre un proceso por servidor, espera a que ambos estén operativos y abre el
-navegador.
+"""Arranca el backend (uvicorn) y el frontend (Next.js) de forma portable (Windows/Linux/macOS).
+Aplica las migraciones, siembra los usuarios de desarrollo, abre los procesos por servidor,
+espera a que ambos estén operativos y abre el navegador.
 """
-
 from __future__ import annotations
 
+import os
+import signal
 import socket
 import subprocess
 import sys
@@ -21,9 +19,11 @@ FRONTEND = ROOT / "frontend"
 BACKEND_PORT = 8000
 FRONTEND_PORT = 3000
 WAIT_TIMEOUT = 90.0
+
+IS_WINDOWS = sys.platform.startswith("win")
 CREATE_NEW_CONSOLE = getattr(subprocess, "CREATE_NEW_CONSOLE", 0)
 
-try:  # evita errores de codificación con acentos en consolas Windows
+try:
     sys.stdout.reconfigure(encoding="utf-8")
     sys.stderr.reconfigure(encoding="utf-8")
 except (AttributeError, ValueError):
@@ -35,19 +35,28 @@ def log(msg: str = "") -> None:
 
 
 def port_pids(port: int) -> list[str]:
-    """PIDs que están escuchando (LISTENING) en el puerto indicado."""
-    try:
-        out = subprocess.run(
-            ["netstat", "-ano"], capture_output=True, text=True, check=False
-        ).stdout
-    except OSError:
-        return []
-    pids: list[str] = []
-    for line in out.splitlines():
-        parts = line.split()
-        if len(parts) >= 5 and parts[3] == "LISTENING" and parts[1].endswith(f":{port}"):
-            pids.append(parts[4])
-    return pids
+    """PIDs que están escuchando en el puerto indicado."""
+    if IS_WINDOWS:
+        try:
+            out = subprocess.run(
+                ["netstat", "-ano"], capture_output=True, text=True, check=False
+            ).stdout
+        except OSError:
+            return []
+        pids: list[str] = []
+        for line in out.splitlines():
+            parts = line.split()
+            if len(parts) >= 5 and parts[3] == "LISTENING" and parts[1].endswith(f":{port}"):
+                pids.append(parts[4])
+        return pids
+    else:
+        try:
+            out = subprocess.run(
+                ["lsof", "-t", f"-i:{port}"], capture_output=True, text=True, check=False
+            ).stdout
+            return [line.strip() for line in out.splitlines() if line.strip()]
+        except OSError:
+            return []
 
 
 def stop_port(port: int, name: str) -> None:
@@ -57,7 +66,13 @@ def stop_port(port: int, name: str) -> None:
         return
     log(f"      [AVISO] Puerto {port} ({name}) ocupado por PID(s): {', '.join(pids)}. Deteniendo...")
     for pid in pids:
-        subprocess.run(["taskkill", "/F", "/PID", pid], capture_output=True, check=False)
+        if IS_WINDOWS:
+            subprocess.run(["taskkill", "/F", "/PID", pid], capture_output=True, check=False)
+        else:
+            try:
+                os.kill(int(pid), signal.SIGTERM)
+            except OSError:
+                pass
     time.sleep(1)
     log("      [OK] Servidor previo detenido.")
 
@@ -67,23 +82,27 @@ def run_step(step: str, args: list[str], cwd: Path) -> None:
     result = subprocess.run(args, cwd=str(cwd), check=False)
     if result.returncode != 0:
         log(f"[ERROR] El comando falló (código {result.returncode}): {' '.join(args)}")
-        input("Pulsa Enter para salir...")
+        if sys.stdin.isatty():
+            input("Pulsa Enter para salir...")
         sys.exit(result.returncode)
 
 
-def launch(title: str, command: str, cwd: Path) -> None:
-    """Abre una consola nueva que permanece abierta (cmd /k) con el comando.
-
-    Se pasa la línea como string (no lista) para que ``cmd`` reciba las
-    comillas de la ruta sin el escapado que hace ``subprocess`` con listas.
-    """
-    log(f"      Abriendo consola: {title}")
-    subprocess.Popen(
-        f'cmd /k "{command}"',
-        cwd=str(cwd),
-        creationflags=CREATE_NEW_CONSOLE,
-        shell=False,
-    )
+def launch(title: str, command: str, cwd: Path) -> subprocess.Popen:
+    """Abre el proceso en consola independiente si está en Windows, o como subproceso en Unix."""
+    log(f"      Iniciando proceso: {title}")
+    if IS_WINDOWS:
+        return subprocess.Popen(
+            f'cmd /k "{command}"',
+            cwd=str(cwd),
+            creationflags=CREATE_NEW_CONSOLE,
+            shell=False,
+        )
+    else:
+        return subprocess.Popen(
+            command,
+            cwd=str(cwd),
+            shell=True,
+        )
 
 
 def wait_port(port: int, name: str, timeout: float = WAIT_TIMEOUT) -> bool:
@@ -105,7 +124,6 @@ def main() -> int:
     log("  ContabilidadV2 - Arranque de desarrollo")
     log("=" * 44)
     log()
-
     python = sys.executable
 
     log("[0/4] Comprobando servidores previos en los puertos...")
@@ -128,9 +146,10 @@ def main() -> int:
     log()
 
     if not (FRONTEND / "node_modules").exists():
+        npm_cmd = ["cmd", "/c", "npm install"] if IS_WINDOWS else ["npm", "install"]
         run_step(
             "[*] Dependencias del frontend no encontradas; ejecutando npm install...",
-            ["cmd", "/c", "npm install"],
+            npm_cmd,
             FRONTEND,
         )
         log()
@@ -149,8 +168,8 @@ def main() -> int:
 
     ok_backend = wait_port(BACKEND_PORT, "Backend")
     ok_frontend = wait_port(FRONTEND_PORT, "Frontend")
-
     log()
+
     log("=" * 44)
     log("  Entorno en marcha")
     log("=" * 44)
@@ -158,7 +177,6 @@ def main() -> int:
     log(f"  Frontend -> http://127.0.0.1:{FRONTEND_PORT}")
     log()
     log("  Usuarios seed: admin/admin-2026 | contable/contable-2026")
-    log("  Cierra las consolas de cada servidor para detenerlo.")
     log()
 
     if ok_backend or ok_frontend:

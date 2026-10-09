@@ -1,11 +1,14 @@
-from datetime import date
+from datetime import UTC, date, datetime
 from decimal import Decimal
-
-from sqlalchemy import Column, ForeignKey, Numeric
+from sqlalchemy import Column, DateTime, ForeignKey, Index, Integer, Numeric
 from sqlalchemy.schema import UniqueConstraint
 from sqlmodel import Field, SQLModel
 
 __all__ = ["Ejercicio", "Cuenta", "Asiento", "Apunte"]
+
+
+def _utcnow() -> datetime:
+    return datetime.now(UTC)
 
 
 class Ejercicio(SQLModel, table=True):
@@ -45,6 +48,7 @@ class Asiento(SQLModel, table=True):
     __tablename__ = "asiento"
     __table_args__ = (
         UniqueConstraint("ejercicio_id", "numero", name="uq_asiento_ejercicio_numero"),
+        Index("ix_asiento_ejercicio_estado_fecha", "ejercicio_id", "estado", "fecha"),
     )
 
     id: int | None = Field(default=None, primary_key=True)
@@ -57,6 +61,28 @@ class Asiento(SQLModel, table=True):
     fecha: date = Field(nullable=False)
     concepto: str = Field(nullable=False, max_length=300)
     estado: str = Field(default="borrador", max_length=20)
+
+    # Trazabilidad legal y control de concurrencia (Spec 2 - LEGAL-01 / CONC-01)
+    creado_por_usuario_id: int = Field(
+        sa_column=Column(
+            "creado_por_usuario_id", ForeignKey("usuario.id", ondelete="RESTRICT"), nullable=False
+        )
+    )
+    asentado_por_usuario_id: int | None = Field(
+        default=None,
+        sa_column=Column(
+            "asentado_por_usuario_id", ForeignKey("usuario.id", ondelete="RESTRICT"), nullable=True
+        ),
+    )
+    created_at: datetime = Field(
+        default_factory=_utcnow,
+        sa_column=Column(DateTime(timezone=True), nullable=False),
+    )
+    asentado_at: datetime | None = Field(
+        default=None,
+        sa_column=Column(DateTime(timezone=True), nullable=True),
+    )
+    version: int = Field(default=1, nullable=False)
 
 
 class Apunte(SQLModel, table=True):

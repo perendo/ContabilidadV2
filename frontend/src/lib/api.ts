@@ -108,10 +108,16 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const headers: Record<string, string> = {
     ...(options.headers as Record<string, string> | undefined),
   };
+  const method = (options.method || "GET").toUpperCase();
   const empresaId = getEmpresaId();
   const ejercicioId = getEjercicioId();
   if (empresaId) headers["X-Empresa-Id"] = empresaId;
   if (ejercicioId) headers["X-Ejercicio-Id"] = ejercicioId;
+
+  // Anti-CSRF (SEC-02): cabecera para peticiones mutacionales
+  if (["POST", "PUT", "DELETE", "PATCH"].includes(method)) {
+    headers["X-Requested-With"] = "XMLHttpRequest";
+  }
 
   const res = await fetch(`/api/v1${path}`, { ...options, headers });
   if (res.status === 204) {

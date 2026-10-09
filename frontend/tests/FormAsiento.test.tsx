@@ -40,6 +40,16 @@ async function rellenarLinea(i: number, cuenta: number, debe: string, haber: str
 }
 
 describe("FormAsiento", () => {
+  it("calcula Δ correctamente sin errores de coma flotante IEEE 754 (T033)", () => {
+    expect(
+      calcularDelta([
+        { id: 1, cuentaId: "7", debe: "0.10", haber: "" },
+        { id: 2, cuentaId: "7", debe: "0.20", haber: "" },
+        { id: 3, cuentaId: "12", debe: "", haber: "0.30" },
+      ])
+    ).toBe("0.00");
+  });
+
   it("calcula Δ en tiempo real sobre N líneas descuadradas", () => {
     expect(
       calcularDelta([

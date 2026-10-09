@@ -1,4 +1,17 @@
 import { useMemo, useRef, useState } from "react";
+import {
+  Alert,
+  Box,
+  Button,
+  CircularProgress,
+  FormControl,
+  InputLabel,
+  NativeSelect,
+  Paper,
+  Stack,
+  TextField,
+  Typography,
+} from "@mui/material";
 
 export interface FilaApunte {
   id: number;
@@ -13,7 +26,7 @@ export interface CuentaOpt {
   nombre: string;
 }
 
-/** Δ (debe − haber) en Decimal (string) sobre N líneas. */
+/** Δ (debe − haber) en Decimal (string) sobre N líneas con precisión de céntimos enteros (T034). */
 export function calcularDelta(apuntes: FilaApunte[]): string {
   const suma = apuntes.reduce(
     (acc, f) => {
@@ -27,8 +40,8 @@ export function calcularDelta(apuntes: FilaApunte[]): string {
 }
 
 export function filaEstaCuadrada(f: FilaApunte): boolean {
-  const debe = Number(f.debe || "0") || 0;
-  const haber = Number(f.haber || "0") || 0;
+  const debe = Math.round((parseFloat(f.debe || "0") || 0) * 100);
+  const haber = Math.round((parseFloat(f.haber || "0") || 0) * 100);
   return (debe > 0) !== (haber > 0);
 }
 
@@ -147,7 +160,12 @@ export default function FormAsiento({
       <h2>Nuevo asiento</h2>
       <label>
         Fecha
-        <input type="date" data-testid="fecha" value={fecha} onChange={(e) => setFecha(e.target.value)} />
+        <input
+          type="date"
+          data-testid="fecha"
+          value={fecha}
+          onChange={(e) => setFecha(e.target.value)}
+        />
       </label>
       <label>
         Concepto
@@ -191,6 +209,7 @@ export default function FormAsiento({
           </button>
         </div>
       ))}
+
       <button onClick={anadirFila}>Añadir línea</button>
 
       <p data-testid="delta">
@@ -204,6 +223,7 @@ export default function FormAsiento({
       >
         Guardar borrador
       </button>
+
       <button
         data-testid="asentar"
         disabled={guardando || !cuadra || !ejercicioAbierto || !onAsentar}

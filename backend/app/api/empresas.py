@@ -1,7 +1,7 @@
 from fastapi import APIRouter
 from sqlmodel import select
-
 from app.api.deps import EmpresaDep, SessionDep, UsuarioDep
+from app.api.errors import ApiError
 from app.models import Ejercicio, Empresa, empresa_usuario
 from app.schemas.identidad import EjercicioIn, EjercicioOut, EmpresaIn, EmpresaOut
 from app.services import identidad as svc

@@ -1,10 +1,9 @@
-﻿from decimal import Decimal, InvalidOperation
+from datetime import UTC, datetime
+from decimal import Decimal, InvalidOperation
 from typing import Any
-
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, select
-
 from app.api.errors import ApiError
 from app.models import Apunte, Asiento, Cuenta, Ejercicio
 
@@ -17,7 +16,6 @@ def validar_lineas(apuntes: list[dict[str, Any]]) -> Decimal:
     """Valida el conjunto de líneas y devuelve su descuadre Δ (debe − haber)."""
     if len(apuntes) < 2:
         raise ValueError("Un asiento requiere al menos 2 apuntes")
-
     total_debe = Decimal("0")
     total_haber = Decimal("0")
     for linea in apuntes:
@@ -72,6 +70,7 @@ def guardar_borrador(
     fecha,
     concepto: str,
     apuntes_recibidos: list[dict[str, Any]],
+    usuario_id: int | None = None,
 ) -> Asiento:
     validar_lineas(apuntes_recibidos)
     _verificar_cuentas_del_ejercicio(
@@ -79,12 +78,15 @@ def guardar_borrador(
     )
     _ejercicio_abierto(session, ejercicio_id, fecha)
 
+    uid = usuario_id or 1
     asiento = Asiento(
         ejercicio_id=ejercicio_id,
         numero=None,
         fecha=fecha,
         concepto=concepto,
         estado="borrador",
+        creado_por_usuario_id=uid,
+        version=1,
     )
     session.add(asiento)
     session.flush()
@@ -108,6 +110,7 @@ def editar_borrador(
     fecha,
     concepto: str,
     apuntes_recibidos: list[dict[str, Any]],
+    usuario_id: int | None = None,
 ) -> Asiento:
     if asiento.estado != "borrador":
         raise ApiError(409, "Los asientos asentados son inmutables")
@@ -116,13 +119,12 @@ def editar_borrador(
         session, asiento.ejercicio_id, [a["cuenta_id"] for a in apuntes_recibidos]
     )
     _ejercicio_abierto(session, asiento.ejercicio_id, fecha)
-
     for ap in session.exec(select(Apunte).where(Apunte.asiento_id == asiento.id)):
         session.delete(ap)
     session.flush()
-
     asiento.fecha = fecha
     asiento.concepto = concepto
+    asiento.version += 1
     for linea in apuntes_recibidos:
         session.add(
             Apunte(
@@ -137,23 +139,35 @@ def editar_borrador(
     return asiento
 
 
-def asentar(session: Session, asiento: Asiento) -> Asiento:
+def asentar(session: Session, asiento: Asiento, usuario_id: int | None = None) -> Asiento:
     if asiento.estado != "borrador":
         raise ApiError(409, "El asiento ya está asentado")
     _ejercicio_abierto(session, asiento.ejercicio_id)
 
     apuntes_db = session.exec(select(Apunte).where(Apunte.asiento_id == asiento.id)).all()
+
+    # Invariante contable (CONT-01): mínimo 2 apuntes
+    if len(apuntes_db) < 2:
+        raise ApiError(422, "Un asiento contable requiere al menos 2 líneas de apunte")
+
+    validar_lineas([{"debe": a.debe, "haber": a.haber} for a in apuntes_db])
     delta = calcular_delta([{"debe": a.debe, "haber": a.haber} for a in apuntes_db])
     if delta != Decimal("0"):
         raise ApiError(422, f"Descuadre del asiento: Δ={delta}")
 
     for _intento in range(5):
         max_num = session.exec(
-            select(func.max(Asiento.numero)).where(Asiento.ejercicio_id == asiento.ejercicio_id)
+            select(func.coalesce(func.max(Asiento.numero), 0)).where(
+                Asiento.ejercicio_id == asiento.ejercicio_id
+            )
         ).one()
         nuevo_numero = (max_num or 0) + 1
         asiento.numero = nuevo_numero
         asiento.estado = "asentado"
+        if usuario_id is not None:
+            asiento.asentado_por_usuario_id = usuario_id
+        asiento.asentado_at = datetime.now(UTC)
+        asiento.version += 1
         try:
             session.commit()
         except IntegrityError:
@@ -167,6 +181,7 @@ def asentar(session: Session, asiento: Asiento) -> Asiento:
 
 
 def obtener_apuntes(session: Session, asiento_id: int) -> list[dict]:
+    # Optimización PERF-02: JOIN explícito en consulta única sin N+1
     stmt = (
         select(Apunte, Cuenta.codigo)
         .join(Cuenta, Apunte.cuenta_id == Cuenta.id)

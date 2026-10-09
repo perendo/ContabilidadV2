@@ -1,10 +1,8 @@
 from typing import Annotated
-
 import jwt
-from fastapi import Cookie, Depends, Header
+from fastapi import Cookie, Depends, Header, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlmodel import Session, select
-
 from app.api.errors import ApiError
 from app.db import get_session
 from app.models import Ejercicio, Empresa, Usuario, empresa_usuario
@@ -14,13 +12,22 @@ _bearer = HTTPBearer(auto_error=False)
 
 
 def get_current_user(
+    request: Request,
     credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(_bearer)],
     session: Annotated[Session, Depends(get_session)],
     access_token: Annotated[str | None, Cookie()] = None,
+    x_requested_with: Annotated[str | None, Header(alias="X-Requested-With")] = None,
 ) -> Usuario:
     token = credentials.credentials if credentials else access_token
     if token is None:
         raise ApiError(401, "No autenticado")
+
+    # Defensa en profundidad Anti-CSRF (SEC-02): requerida en mutaciones cuando se usa cookie
+    if credentials is None and access_token is not None:
+        if request.method in ("POST", "PUT", "DELETE", "PATCH"):
+            if x_requested_with != "XMLHttpRequest":
+                raise ApiError(403, "Protección CSRF: Cabecera X-Requested-With requerida")
+
     try:
         payload = decode_access_token(token)
     except jwt.PyJWTError:
@@ -41,10 +48,14 @@ def get_empresa_context(
         raise ApiError(400, "Cabecera X-Empresa-Id requerida")
     if not x_empresa_id.isdigit():
         raise ApiError(400, "Cabecera X-Empresa-Id inválida")
+
     empresa_id = int(x_empresa_id)
     empresa = session.get(Empresa, empresa_id)
-    if empresa is None or not empresa.activa:
-        raise ApiError(403, "Sin acceso a la empresa o empresa inactiva")
+    if empresa is None:
+        raise ApiError(404, "Empresa no encontrada")
+    if not empresa.activa:
+        raise ApiError(403, "La empresa seleccionada está inactiva")
+
     vinculo = session.exec(
         select(empresa_usuario).where(
             empresa_usuario.c.usuario_id == usuario.id,
@@ -65,6 +76,7 @@ def get_ejercicio_context(
         raise ApiError(400, "Cabecera X-Ejercicio-Id requerida")
     if not x_ejercicio_id.isdigit():
         raise ApiError(400, "Cabecera X-Ejercicio-Id inválida")
+
     ejercicio_id = int(x_ejercicio_id)
     ejercicio = session.get(Ejercicio, ejercicio_id)
     if ejercicio is None or ejercicio.empresa_id != empresa_id:

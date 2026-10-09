@@ -1,9 +1,9 @@
-from fastapi import APIRouter, Response
+from fastapi import APIRouter, Request, Response
 from sqlmodel import select
-
 from app.api.deps import SessionDep, UsuarioDep
 from app.api.errors import ApiError
 from app.config import get_settings
+from app.main import limiter
 from app.models import Empresa, Usuario, empresa_usuario
 from app.schemas.identidad import (
     LoginRequest,
@@ -17,18 +17,19 @@ from app.services.seguridad import (
 )
 
 router = APIRouter(prefix="/auth", tags=["auth"])
-
 _settings = get_settings()
 
 
 @router.post("/login", response_model=LoginResponse)
-def login(payload: LoginRequest, response: Response, session: SessionDep) -> LoginResponse:
+@limiter.limit(_settings.rate_limit_login)
+def login(
+    request: Request, payload: LoginRequest, response: Response, session: SessionDep
+) -> LoginResponse:
     usuario = session.exec(select(Usuario).where(Usuario.username == payload.username)).first()
     if usuario is None or not verify_password(usuario.hashed_password, payload.password):
         raise ApiError(401, "Credenciales inválidas")
     if not usuario.activo:
         raise ApiError(401, "Usuario inactivo")
-
     token = create_access_token(usuario.username)
     response.set_cookie(
         key="access_token",

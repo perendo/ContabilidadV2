@@ -1,5 +1,13 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  transpilePackages: [
+    "@mui/material",
+    "@mui/system",
+    "@mui/icons-material",
+    "@emotion/react",
+    "@emotion/styled",
+    "@mui/material-nextjs",
+  ],
   async rewrites() {
     return [
       {
