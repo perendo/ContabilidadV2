@@ -27,17 +27,18 @@ Frontend — ejecutar desde `frontend/`:
 
 Verificar en orden: backend `ruff` → `pytest`; frontend `lint` → `tsc --noEmit` → `build`.
 
-La BD SQLite es `backend/contabilidadv2.db` (gitignored). Los pragmas WAL/busy_timeout/foreign_keys se aplican al conectar; `/api/v1/health` los reporta.
+La BD SQLite es `backend/contabilidadv2.db` (gitignored). Los pragmas WAL/busy_timeout/foreign_keys se aplican al conectar y quedan solo en los logs de arranque (`lifespan`); `/api/v1/health` devuelve únicamente `{"status":"ok"}` (SEC-06, sin detalles de infraestructura).
 
 ## Gotchas
 
 - **Esquema solo vía Alembic**, nunca `create_all`. `alembic revision --autogenerate` emite `sqlmodel.sql.sqltypes.AutoString` sin import y omite los índices FK — reemplazar por `sa.String(...)` y añadir los `ix_*` a mano, luego `alembic upgrade head`.
 - `empresa_usuario` es un `sqlmodel Table`, no una clase. `session.exec(select(empresa_usuario))` devuelve solo la primera columna; usar `session.execute(...)` + `row._mapping["col"]`.
 - Los schemas Pydantic que validan objetos ORM necesitan `model_config = ConfigDict(from_attributes=True)`.
-- Auth acepta `Authorization: Bearer` O la cookie httpOnly `access_token`; el login establece ambos. Los endpoints de negocio además requieren las cabeceras `X-Empresa-Id` + `X-Ejercicio-Id` (400 si faltan, 403 si no está vinculado).
-- Regla de rol (FR-003b): solo `admin` crea empresas; `contable` → 403. Los usuarios solo se crean por seed — no hay endpoint de registro.
+- Auth acepta `Authorization: Bearer` O la cookie httpOnly `access_token`; el login establece ambos. Los endpoints de negocio además requieren las cabeceras `X-Empresa-Id` + `X-Ejercicio-Id` (400 si faltan, 403 si no está vinculado). El login tiene rate limit `5/minute` por IP (slowapi).
+- Regla de rol (FR-003b): solo `admin` crea empresas **y** ejercicios; `contable` → 403. Los usuarios solo se crean por seed — no hay endpoint de registro.
+- **`limiter` de slowapi vive en `app/rate_limit.py`**, no en `app.main` (`api/auth.py` lo importa → import circular si se define en `main`). Instalar dependencias con `pip install -e .` desde `backend/` si falta algún paquete declarado en `pyproject.toml`.
 - **PGC base**: `services/identidad.crear_ejercicio` llama a `sembrar_pgc` (`app/pgc.py`) en el mismo commit (siembra grupos 1-7, niveles 1-3, `nivel=len(codigo)`); `app.seed` hace backfill **idempotente** de ejercicios sin cuentas. Códigos de cuenta **solo dígitos** (`max_length=10`); las subcuentas (nivel 4+) se crean sobre ese PGC vía `POST /cuentas`.
-- `backend/tests/conftest.py` migra una BD temporal con `alembic upgrade head` y llama a `get_settings.cache_clear()`. Ejecutar los tests desde `backend/` (las rutas de `pyproject.toml`/`alembic.ini` son relativas).
+- `backend/tests/conftest.py` migra una BD temporal con `alembic upgrade head` y llama a `get_settings.cache_clear()`. Ejecutar los tests desde `backend/` (las rutas de `pyproject.toml`/`alembic.ini` son relativas). El fixture `contexto` acepta `rol=` (por defecto `contable`); los tests que crean ejercicios vía API usan `contexto(rol="admin")` y los que esperan 403 por rol deben **vincular** el usuario a la empresa o recibirán "Sin acceso a la empresa" antes del chequeo de rol. `backend/.env` alimenta `Settings()` en tests unitarios: para ignorar el dotenv usar `Settings(_env_file=None)`.
 - Proxy de desarrollo del frontend: `next.config.mjs` reescribe `/api/v1/*` → `NEXT_PUBLIC_API_URL` (por defecto `http://127.0.0.1:8000`). `src/lib/api.ts` lee las cookies `empresa_id`/`ejercicio_id` como contexto. Alias de rutas `@/*` → `src/*`.
 - vitest exige `esbuild.jsx: "automatic"` (ya configurado en `vitest.config.ts`); eslint está fijado a v8 porque Next 15 usa el `.eslintrc.json` legacy.
 - Shell Windows/PowerShell: encadenar con `;` / `if ($?)`, no con `&&`.

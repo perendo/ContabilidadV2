@@ -8,7 +8,7 @@ La lógica contable (validaciones, cuadre, correlativos, cierres de periodo y ai
 
 - **Multi-tenant lógico**: Usuario → Empresa → Ejercicio → Cuenta / Asiento → Apunte. Contexto activo por cabeceras `X-Empresa-Id` / `X-Ejercicio-Id` con verificación de pertenencia.
 - **Selección de contexto**: tras el login, pantalla `/seleccion` para elegir o **crear** empresa (solo `admin`) y ejercicio antes de operar.
-- **Autenticación**: JWT (PyJWT) + hash argon2. Login devuelve `Authorization: Bearer` y cookie httpOnly `SameSite=Lax`.
+- **Autenticación**: JWT (PyJWT) + hash argon2. Login devuelve `Authorization: Bearer` y cookie httpOnly `SameSite=Lax`. Rate limit de login `5/minute` por IP (slowapi).
 - **Plan de cuentas** por ejercicio con **PGC base curado** (niveles 1-3, grupos 1-7) **sembrado automáticamente** al crear el ejercicio; el usuario añade **subcuentas** (nivel 4+) sobre él en vista de árbol. Códigos numéricos con unicidad `(ejercicio_id, codigo)`.
 - **Asientos de 2 a N líneas** con flujo **borrador → asentado**: el borrador admite descuadre; el `asentar` exige ΣDebe = ΣHaber y asigna un número correlativo atómico sin huecos.
 - **Inmutabilidad**: los asientos asentados no se editan ni eliminan (correcciones por extorno en fases posteriores).
@@ -21,7 +21,7 @@ La lógica contable (validaciones, cuadre, correlativos, cierres de periodo y ai
 
 | Capa | Tecnología |
 |------|------------|
-| Backend | Python 3.12 · FastAPI · SQLModel/SQLAlchemy 2 · Alembic · PyJWT · argon2-cffi |
+| Backend | Python 3.12 · FastAPI · SQLModel/SQLAlchemy 2 · Alembic · PyJWT · argon2-cffi · slowapi |
 | Base de datos | SQLite en modo WAL |
 | Frontend | Next.js 15 (App Router) · React 19 · MUI v6 · Emotion |
 | Tests | pytest + httpx (backend) · vitest + Testing Library (frontend) |
@@ -59,7 +59,7 @@ Aplica migraciones, crea usuarios de desarrollo y arranca el servidor (desde `ba
 ```
 
 - API: http://127.0.0.1:8000 · Swagger: http://127.0.0.1:8000/docs
-- Estado: `GET /api/v1/health` → `{ "status": "ok", "db": "wal", ... }`
+- Estado: `GET /api/v1/health` → `{ "status": "ok" }` (liveness mínimo; los pragmas quedan solo en los logs de arranque, SEC-06)
 - Usuarios seed: `admin` / `admin-2026` (crea empresas) y `contable` / `contable-2026`. El seed también siembra el **PGC base** en ejercicios existentes sin cuentas. Tras el login se abre `/seleccion` para elegir o crear empresa y ejercicio.
 
 ### 2. Frontend
@@ -80,8 +80,8 @@ Cliente en http://127.0.0.1:3000. El dev server reescribe `/api/v1/*` hacia `NEX
 | Variable | Por defecto | Descripción |
 |----------|-------------|-------------|
 | `APP_DATABASE_URL` | `sqlite:///./contabilidadv2.db` | URL de la base de datos |
-| `APP_JWT_SECRET` | secreto de desarrollo | **Cambiar en producción** (≥ 32 bytes) |
-| `APP_JWT_EXPIRES_SECONDS` | `43200` | Caducidad del token (12 h) |
+| `APP_JWT_SECRET` | *(obligatorio)* | Sin defecto; en producción ≥ 32 chars y sin `change-me` |
+| `APP_JWT_EXPIRES_SECONDS` | `3600` | Caducidad del token (máx. 1 h) |
 
 **Frontend** (`frontend/.env.local`):
 
@@ -110,7 +110,7 @@ Base path `/api/v1`. Cuerpos JSON; fechas `YYYY-MM-DD`; importes como cadena dec
 | GET | `/asientos` | Diario de asentados (paginado/filtrable) |
 | GET | `/asientos/borradores` | Borradores del ejercicio |
 | GET | `/asientos/{id}` | Detalle con apuntes |
-| GET | `/health` | Estado del servicio y pragmas |
+| GET | `/health` | Liveness del servicio (`{"status":"ok"}`) |
 
 Códigos: `400` contexto/firma inválida · `401` no autenticado · `403` sin acceso · `404` inexistente · `409` conflicto de estado/unicidad · `422` validación/descuadre.
 
@@ -143,6 +143,7 @@ ContabilidadV2/
 │   │   ├── config.py    # settings (pydantic-settings)
 │   │   ├── db.py        # motor SQLite + pragmas WAL
 │   │   ├── main.py      # app FastAPI
+│   │   ├── rate_limit.py # Limiter de slowapi (evita import circular con api/auth)
 │   │   └── seed.py      # usuarios de desarrollo + backfill del PGC base
 │   ├── alembic/         # migraciones (único camino de evolución del esquema)
 │   ├── tests/           # unit/ e integration/
