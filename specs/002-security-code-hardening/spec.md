@@ -31,6 +31,21 @@ La auditoría de la Fase 1 reveló 14 vectores de riesgo categorizados por sever
 
 ---
 
+## Clarifications
+
+### Session 2026-10-09
+
+- Q: Cuando una petición se autentica mediante la cookie `access_token`, ¿qué cabecera anti-CSRF debe enviar una petición mutacional (`POST`/`PUT`/`DELETE`) para que el backend la acepte? → A: Exigir únicamente la presencia de `X-Requested-With: XMLHttpRequest` (no se emite ni valida `X-CSRF-Token`).
+- Q: El límite de 5/minuto sobre `/auth/login` ¿qué peticiones cuenta y con qué clave? → A: Todas las peticiones (éxito o fallo), con clave = IP remota.
+- Q: Al quedar `jwt_secret` sin valor por defecto, ¿cómo debe comportarse la aplicación en desarrollo y tests cuando no se define `APP_JWT_SECRET`? → A: Obligatorio en todos los entornos; la app no arranca sin `APP_JWT_SECRET`, y `conftest.py` y `.env.example` deben definirlo (sin ningún fallback embebido).
+- Q: La exigencia anti-CSRF rompería las mutaciones del cliente autenticado por cookie; ¿debe el frontend enviar `X-Requested-With: XMLHttpRequest` y en qué peticiones? → A: Sí; `src/lib/api.ts` añade la cabecera en toda petición `POST`/`PUT`/`DELETE` (nuevo slice + test).
+- Q: `creado_por_usuario_id` y `created_at` son `NOT NULL`; ¿qué debe hacer la migración Alembic con los asientos ya existentes? → A: Estrategia nullable → backfill a un usuario admin/sistema → `NOT NULL`. Nota: la BD de desarrollo actual no contiene asientos ni PGC, por lo que el backfill no afecta a ninguna fila y es aceptable recrear la BD de desarrollo; la migración se escribe igualmente de forma defensiva.
+- Q: El campo `version` que se añade a `Asiento` ¿cómo debe usarse realmente en Spec 2? → A: Solo servidor: se añade el campo y se incrementa en cada modificación, sin validarlo contra el cliente (control de concurrencia optimista queda para Fase 2).
+- Q: Tras quitar los pragmas, ¿qué debe devolver exactamente `GET /api/v1/health`? → A: Únicamente `{"status": "ok"}` (liveness mínimo, sin versión ni detalles de infraestructura).
+- Q: ¿Qué alcance debe tener la migración a MUI v6 en `FormAsiento.tsx` (FRONT-02)? → A: Solo los controles interactivos del formulario (`TextField`, `Select`, `Button` de MUI v6) con etiquetas y `data-testid`, sin rehacer el layout.
+
+---
+
 ## 2. Cambios Requeridos en Arquitectura y Código
 
 ### 2.1. Ajustes en Modelos SQLModel y Esquemas Pydantic
@@ -72,7 +87,7 @@ class Asiento(SQLModel, table=True):
     )
     created_at: datetime = Field(default_factory=_utcnow, sa_column=Column(DateTime(timezone=True), nullable=False))
     asentado_at: datetime | None = Field(default=None, sa_column=Column(DateTime(timezone=True), nullable=True))
-    version: int = Field(default=1, nullable=False)  # Control de concurrencia optimista
+    version: int = Field(default=1, nullable=False)  # Reservado para control de concurrencia optimista (Fase 2)
 ```
 
 #### B. Endurecimiento de Configuración y Clave JWT
@@ -100,6 +115,8 @@ class Settings(BaseSettings):
                 raise ValueError("APP_JWT_SECRET no cumple los requisitos mínimos de seguridad en producción (mínimo 32 caracteres seguros)")
         return self
 ```
+
+> **Nota (todos los entornos):** `APP_JWT_SECRET` es obligatorio también en desarrollo y tests; no existe ningún secreto por defecto embebido. `backend/tests/conftest.py` debe definir un `APP_JWT_SECRET` de prueba y `.env.example` debe documentar cómo generar uno seguro.
 
 ---
 
@@ -187,7 +204,7 @@ def asentar(session: Session, asiento: Asiento, usuario_id: int) -> Asiento:
     session.refresh(asiento)
     return asiento
 
-def obtener_apuntes_optimizados(session: Session, asiento_id: int) -> list[dict]:
+def obtener_apuntes(session: Session, asiento_id: int) -> list[dict]:
     # Consulta única con JOIN: cero consultas N+1
     stmt = (
         select(Apunte, Cuenta.codigo)
@@ -211,9 +228,9 @@ def obtener_apuntes_optimizados(session: Session, asiento_id: int) -> list[dict]
 ### 2.4. Protección Anti-CSRF y Mitigación de DoS en Login
 
 1. **Defensa en Profundidad Anti-CSRF:**  
-   Cuando la autenticación provenga de la cookie `access_token`, el backend exigirá la presencia de una cabecera personalizada (`X-Requested-With: XMLHttpRequest` o `X-CSRF-Token`). Las peticiones mutacionales (`POST`, `PUT`, `DELETE`) sin esta cabecera serán denegadas con HTTP 403.
+   Cuando la autenticación provenga de la cookie `access_token`, el backend exigirá la presencia de la cabecera `X-Requested-With: XMLHttpRequest`. Las peticiones mutacionales (`POST`, `PUT`, `DELETE`) que no incluyan dicha cabecera con ese valor serán denegadas con HTTP 403 y un `detail` que contenga la cadena "CSRF". No se emite ni valida ningún `X-CSRF-Token`. El frontend (`src/lib/api.ts`) envía esta cabecera en toda petición mutacional (`POST`/`PUT`/`DELETE`).
 2. **Rate Limiting con SlowAPI:**  
-   Integrar un limitador de tasa sobre `/api/v1/auth/login` (máximo 5 peticiones por minuto por IP) para proteger el coste computacional de Argon2.
+   Integrar un limitador de tasa sobre `/api/v1/auth/login` por **IP remota**, contabilizando **todas las peticiones (aciertos y fallos)**: máximo 5 peticiones por minuto; la sexta y siguientes devuelven HTTP 429. No se usa el nombre de usuario como clave. Objetivo: proteger el coste computacional de Argon2.
 
 ---
 
@@ -226,8 +243,9 @@ def obtener_apuntes_optimizados(session: Session, asiento_id: int) -> list[dict]
 
 ### Slice 2: Integridad Contable y Partida Doble
 * Tarea 2.1: Implementar comprobación `len(apuntes_db) >= 2` en `asentar()`.
-* Tarea 2.2: Añadir migración Alembic `002_trazabilidad_auditoria_asientos.py` para incorporar `creado_por_usuario_id`, `asentado_por_usuario_id`, `created_at` y `asentado_at`.
+* Tarea 2.2: Añadir migración Alembic `002_trazabilidad_auditoria_asientos.py` para incorporar `creado_por_usuario_id`, `asentado_por_usuario_id`, `created_at` y `asentado_at`. La estrategia de upgrade será: añadir columnas como nullable → backfill de las filas existentes a un usuario admin/sistema (no-op si no hay asientos) → aplicar `NOT NULL` a `creado_por_usuario_id` y `created_at`.
 * Tarea 2.3: Actualizar los endpoints de borrador y asentado para propagar el `usuario.id`.
+* Tarea 2.4: Incrementar `Asiento.version` en el servidor en cada modificación (sin validación contra el cliente; el control de concurrencia optimista se activa en Fase 2).
 
 ### Slice 3: Blindaje de Aislamiento Multi-Tenant y RBAC
 * Tarea 3.1: Incorporar validación `Empresa.activa == True` en `get_empresa_context()`.
@@ -241,11 +259,12 @@ def obtener_apuntes_optimizados(session: Session, asiento_id: int) -> list[dict]
 ### Slice 5: Protección de Autenticación, Rate Limit y CSRF
 * Tarea 5.1: Configurar `slowapi` en FastAPI para restringir intentos de login a 5 req/min.
 * Tarea 5.2: En `deps.py`, validar cabecera `X-Requested-With` cuando se use autenticación basada en cookie.
-* Tarea 5.3: Sanitizar endpoint `/health` ocultando pragmas internos de SQLite.
+* Tarea 5.3: Sanitizar endpoint `/health` para devolver únicamente `{"status": "ok"}`, eliminando pragmas y cualquier detalle interno de SQLite.
 
 ### Slice 6: Precisión Aritmética y UI en Frontend
 * Tarea 6.1: Refactorizar `calcularDelta()` en `FormAsiento.tsx` para operar sobre céntimos enteros (`Math.round(x * 100)`).
-* Tarea 6.2: Migrar elementos HTML nativos de `FormAsiento.tsx` a componentes Material Design 3 de MUI v6 conservando selectores `data-testid`.
+* Tarea 6.2: Migrar solo los controles interactivos de `FormAsiento.tsx` (`TextField`, `Select`, `Button`) a componentes Material Design 3 de MUI v6, conservando selectores `data-testid`; no se rehace el layout del componente.
+* Tarea 6.3: Añadir en `src/lib/api.ts` la cabecera `X-Requested-With: XMLHttpRequest` a toda petición `POST`/`PUT`/`DELETE`, y cubrirlo con un test de vitest.
 
 ---
 
@@ -365,4 +384,4 @@ def test_health_no_expone_detalles_internos(client):
 * **Criterio 1 (Partida Doble):** Toda llamada a `/asientos/{id}/asentar` sobre un asiento con menos de 2 líneas devuelve HTTP 422.
 * **Criterio 2 (Trazabilidad):** El asiento asentado persiste obligatoriamente `asentado_por_usuario_id` y `asentado_at`.
 * **Criterio 3 (Multi-tenant Inactivo):** Toda petición con cabecera de empresa con `activa = False` es rechazada con HTTP 403.
-* **Criterio 4 (Anti-Brute Force):** El sexto intento fallido en `/auth/login` en menos de 1 minuto devuelve HTTP 429.
+* **Criterio 4 (Anti-Brute Force):** La sexta petición a `/auth/login` desde la misma IP en menos de 1 minuto devuelve HTTP 429, con independencia de si acierta o falla la credencial.
