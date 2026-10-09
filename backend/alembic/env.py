@@ -3,7 +3,6 @@ from logging.config import fileConfig
 from sqlalchemy import engine_from_config, pool
 
 from alembic import context
-
 from app.config import get_settings
 from app.models import metadata as target_metadata
 
@@ -14,6 +13,15 @@ if config.config_file_name is not None:
 
 config.set_main_option("sqlalchemy.url", get_settings().database_url)
 
+NAMING_CONVENTION = {
+    "ix": "ix_%(column_0_label)s",
+    "uq": "uq_%(table_name)s_%(column_0_name)s",
+    "ck": "ck_%(table_name)s_%(constraint_name)s",
+    "fk": "fk_%(table_name)s_%(column_0_name)s_%(referred_table_name)s",
+    "pk": "pk_%(table_name)s",
+}
+target_metadata.naming_convention = NAMING_CONVENTION
+
 
 def run_migrations_offline() -> None:
     url = config.get_main_option("sqlalchemy.url")
@@ -22,6 +30,7 @@ def run_migrations_offline() -> None:
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
+        render_as_batch=True,
     )
 
     with context.begin_transaction():
@@ -36,7 +45,11 @@ def run_migrations_online() -> None:
     )
 
     with connectable.connect() as connection:
-        context.configure(connection=connection, target_metadata=target_metadata)
+        context.configure(
+            connection=connection,
+            target_metadata=target_metadata,
+            render_as_batch=True,
+        )
 
         with context.begin_transaction():
             context.run_migrations()
