@@ -1,12 +1,12 @@
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from logging import getLogger
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
-from slowapi.util import get_remote_address
 
 from app.api.asientos import router as asientos_router
 from app.api.auth import router as auth_router
@@ -15,11 +15,10 @@ from app.api.empresas import router as empresas_router
 from app.api.errors import register_error_handlers
 from app.config import get_settings
 from app.db import sqlite_pragmas_state
+from app.rate_limit import limiter
 
 logger = getLogger("contabilidadv2")
 _settings = get_settings()
-
-limiter = Limiter(key_func=get_remote_address)
 
 
 @asynccontextmanager

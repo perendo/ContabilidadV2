@@ -1,4 +1,3 @@
-import os
 import pytest
 from pydantic import ValidationError
 from app.config import Settings
@@ -8,11 +7,11 @@ def test_settings_sin_jwt_secret_lanza_validation_error(monkeypatch):
     """(a) Settings() sin APP_JWT_SECRET lanza ValidationError."""
     monkeypatch.delenv("APP_JWT_SECRET", raising=False)
     with pytest.raises(ValidationError):
-        Settings()
+        Settings(_env_file=None)
 
 
 def test_settings_produccion_secreto_debil_lanza_error(monkeypatch):
-    """(b) En environment='production' y secreto débil (<32 chars o 'change-me') lanza ValidationError/ValueError."""
+    """(b) En production y secreto débil (<32 chars o 'change-me') lanza ValidationError."""
     monkeypatch.setenv("APP_ENVIRONMENT", "production")
 
     # Caso corto (< 32 caracteres)

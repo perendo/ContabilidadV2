@@ -132,8 +132,8 @@ def make_cuenta(session):
 def contexto(session, make_usuario, make_empresa, make_ejercicio, make_cuenta):
     """Empresa + ejercicio abierto + cuentas de ejemplo para endpoints de negocio."""
 
-    def _build(username="contable1", cif="B12345678"):
-        usuario = make_usuario(username)
+    def _build(username="contable1", cif="B12345678", rol="contable"):
+        usuario = make_usuario(username, rol=rol)
         empresa = make_empresa(usuario, cif=cif)
         ejercicio = make_ejercicio(empresa.id)
         c_in = make_cuenta(ejercicio.id, "57200001", "Bancos c/c", 4)

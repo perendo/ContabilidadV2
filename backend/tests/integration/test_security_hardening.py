@@ -2,10 +2,8 @@
 Verifica que todas las vulnerabilidades detectadas quedan blindadas.
 """
 from datetime import date
-from decimal import Decimal
-import pytest
-from sqlmodel import Session, select
-from app.models import Asiento, Apunte, Empresa
+from sqlmodel import Session
+from app.models import Asiento, Empresa, empresa_usuario
 from app.services.seguridad import create_access_token
 
 
@@ -91,10 +89,16 @@ def test_empresa_inactiva_retorna_403(contexto, client, session: Session):
     assert "inactiva" in resp.json()["detail"].lower()
 
 
-def test_usuario_contable_no_puede_crear_ejercicio_403(contexto, client, make_usuario):
+def test_usuario_contable_no_puede_crear_ejercicio_403(contexto, client, make_usuario, session):
     """(T018 / SEC-04) Solo el administrador puede abrir nuevos ejercicios fiscales."""
     ctx = contexto()
     contable = make_usuario("contable_user", rol="contable")
+    session.execute(
+        empresa_usuario.insert().values(
+            usuario_id=contable.id, empresa_id=ctx["empresa"].id, rol_especifico="contable"
+        )
+    )
+    session.commit()
     token = create_access_token(contable.username)
     headers = {
         "Authorization": f"Bearer {token}",
@@ -135,7 +139,10 @@ def test_mutacion_con_cookie_sin_cabecera_csrf_rechazada(contexto, client):
     # Intento de mutación SIN cabecera X-Requested-With ni Bearer
     resp = client.post(
         "/api/v1/cuentas",
-        headers={"X-Ejercicio-Id": str(ctx["ejercicio"].id), "X-Empresa-Id": str(ctx["empresa"].id)},
+        headers={
+            "X-Ejercicio-Id": str(ctx["ejercicio"].id),
+            "X-Empresa-Id": str(ctx["empresa"].id),
+        },
         json={"codigo": "572009", "nombre": "Banco Sec", "nivel": 4},
     )
     assert resp.status_code == 403

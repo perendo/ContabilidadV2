@@ -1,5 +1,5 @@
-from sqlalchemy import func
 from fastapi import APIRouter, Query
+from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import select
 

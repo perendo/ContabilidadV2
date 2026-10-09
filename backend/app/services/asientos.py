@@ -1,9 +1,11 @@
 from datetime import UTC, datetime
 from decimal import Decimal, InvalidOperation
 from typing import Any
+
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, select
+
 from app.api.errors import ApiError
 from app.models import Apunte, Asiento, Cuenta, Ejercicio
 

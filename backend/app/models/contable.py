@@ -1,6 +1,7 @@
 from datetime import UTC, date, datetime
 from decimal import Decimal
-from sqlalchemy import Column, DateTime, ForeignKey, Index, Integer, Numeric
+
+from sqlalchemy import Column, DateTime, ForeignKey, Index, Numeric
 from sqlalchemy.schema import UniqueConstraint
 from sqlmodel import Field, SQLModel
 

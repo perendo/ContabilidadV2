@@ -84,7 +84,7 @@ def test_codigo_invalido_422(contexto, client):
 
 
 def test_subcuenta_nivel4_sobre_cuenta_pgc(contexto, client):
-    ctx = contexto()
+    ctx = contexto(rol="admin")
     h = {**ctx["headers"], "X-Empresa-Id": str(ctx["empresa"].id)}
     r = client.post(
         "/api/v1/ejercicios",

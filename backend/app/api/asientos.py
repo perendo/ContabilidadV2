@@ -1,7 +1,9 @@
 from datetime import date
+
 from fastapi import APIRouter, Query
 from sqlalchemy import func
 from sqlmodel import select
+
 from app.api.deps import EjercicioDep, SessionDep, UsuarioDep
 from app.api.errors import ApiError
 from app.models import Apunte, Asiento

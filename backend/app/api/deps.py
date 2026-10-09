@@ -1,8 +1,10 @@
 from typing import Annotated
+
 import jwt
 from fastapi import Cookie, Depends, Header, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlmodel import Session, select
+
 from app.api.errors import ApiError
 from app.db import get_session
 from app.models import Ejercicio, Empresa, Usuario, empresa_usuario

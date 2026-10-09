@@ -1,10 +1,11 @@
 from fastapi import APIRouter, Request, Response
 from sqlmodel import select
+
 from app.api.deps import SessionDep, UsuarioDep
 from app.api.errors import ApiError
 from app.config import get_settings
-from app.main import limiter
 from app.models import Empresa, Usuario, empresa_usuario
+from app.rate_limit import limiter
 from app.schemas.identidad import (
     LoginRequest,
     LoginResponse,

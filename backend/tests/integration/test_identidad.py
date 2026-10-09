@@ -91,7 +91,7 @@ def test_contexto_ajeno_403(contexto, client, make_usuario, make_empresa):
 
 
 def test_crear_ejercicio_201_abierto(contexto, client):
-    ctx = contexto()
+    ctx = contexto(rol="admin")
     h = {**ctx["headers"], "X-Empresa-Id": str(ctx["empresa"].id)}
     r = client.post(
         "/api/v1/ejercicios",
@@ -103,7 +103,7 @@ def test_crear_ejercicio_201_abierto(contexto, client):
 
 
 def test_crear_ejercicio_anio_duplicado_409(contexto, client):
-    ctx = contexto()
+    ctx = contexto(rol="admin")
     h = {**ctx["headers"], "X-Empresa-Id": str(ctx["empresa"].id)}
     r = client.post(
         "/api/v1/ejercicios",
@@ -125,7 +125,7 @@ def test_crear_ejercicio_siembra_pgc_base(contexto, client, session):
     from app.models import Cuenta
     from app.pgc import PGC_BASE
 
-    ctx = contexto()
+    ctx = contexto(rol="admin")
     h = {**ctx["headers"], "X-Empresa-Id": str(ctx["empresa"].id)}
     r = client.post(
         "/api/v1/ejercicios",
