@@ -35,7 +35,9 @@ def listar_ejercicios(session: SessionDep, empresa_id: EmpresaDep) -> list[Ejerc
 
 @router.post("/ejercicios", response_model=EjercicioOut, status_code=201)
 def crear_ejercicio(
-    payload: EjercicioIn, session: SessionDep, empresa_id: EmpresaDep
+    payload: EjercicioIn, session: SessionDep, empresa_id: EmpresaDep, usuario: UsuarioDep
 ) -> EjercicioOut:
+    if usuario.rol != "admin":
+        raise ApiError(403, "Solo el rol admin puede crear ejercicios")
     ejercicio = svc.crear_ejercicio(session, empresa_id, payload)
     return EjercicioOut.model_validate(ejercicio)

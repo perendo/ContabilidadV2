@@ -17,6 +17,8 @@ def _crear_y_asentar(ejercicio_id, c1, c2, errores, resultados):
 
     try:
         with Session(engine) as s:
+            from decimal import Decimal
+            from app.models import Apunte
             asiento = Asiento(
                 ejercicio_id=ejercicio_id,
                 numero=None,
@@ -27,6 +29,9 @@ def _crear_y_asentar(ejercicio_id, c1, c2, errores, resultados):
             s.add(asiento)
             s.commit()
             s.refresh(asiento)
+            s.add(Apunte(asiento_id=asiento.id, cuenta_id=c1, debe=Decimal("10.00"), haber=Decimal("0.00")))
+            s.add(Apunte(asiento_id=asiento.id, cuenta_id=c2, debe=Decimal("0.00"), haber=Decimal("10.00")))
+            s.commit()
             asentar(s, asiento)
             resultados.append(asiento.numero)
     except Exception as e:  # noqa: BLE001

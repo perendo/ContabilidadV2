@@ -111,7 +111,12 @@ def diario(
         query = query.where(Asiento.fecha >= since)
     if until is not None:
         query = query.where(Asiento.fecha <= until)
-    total = len(session.exec(query).all())
+    count_stmt = select(func.count(Asiento.id)).where(Asiento.ejercicio_id == ejercicio, Asiento.estado == "asentado")
+    if since is not None:
+        count_stmt = count_stmt.where(Asiento.fecha >= since)
+    if until is not None:
+        count_stmt = count_stmt.where(Asiento.fecha <= until)
+    total = session.exec(count_stmt).one()
     asientos = session.exec(query.order_by(Asiento.numero).offset(offset).limit(limit)).all()
     return Paginado(
         total=total,
@@ -129,7 +134,8 @@ def borradores(
     limit: int = Query(default=50, ge=1, le=200),
 ) -> Paginado[AsientoResumen]:
     query = select(Asiento).where(Asiento.ejercicio_id == ejercicio, Asiento.estado == "borrador")
-    total = len(session.exec(query).all())
+    count_stmt = select(func.count(Asiento.id)).where(Asiento.ejercicio_id == ejercicio, Asiento.estado == "borrador")
+    total = session.exec(count_stmt).one()
     asientos = session.exec(query.order_by(Asiento.fecha.desc()).offset(offset).limit(limit)).all()
     return Paginado(
         total=total,

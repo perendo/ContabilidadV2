@@ -167,14 +167,18 @@ def asentar(session: Session, asiento: Asiento) -> Asiento:
 
 
 def obtener_apuntes(session: Session, asiento_id: int) -> list[dict]:
-    apuntes = session.exec(select(Apunte).where(Apunte.asiento_id == asiento_id)).all()
+    stmt = (
+        select(Apunte, Cuenta.codigo)
+        .join(Cuenta, Apunte.cuenta_id == Cuenta.id)
+        .where(Apunte.asiento_id == asiento_id)
+    )
+    filas = session.exec(stmt).all()
     resultado = []
-    for ap in apuntes:
-        cuenta = session.get(Cuenta, ap.cuenta_id)
+    for ap, codigo in filas:
         resultado.append(
             {
                 "cuenta_id": ap.cuenta_id,
-                "cuenta_codigo": cuenta.codigo,
+                "cuenta_codigo": codigo,
                 "debe": str(ap.debe),
                 "haber": str(ap.haber),
             }

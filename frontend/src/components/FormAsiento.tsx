@@ -17,13 +17,13 @@ export interface CuentaOpt {
 export function calcularDelta(apuntes: FilaApunte[]): string {
   const suma = apuntes.reduce(
     (acc, f) => {
-      const debe = Number(f.debe || "0") || 0;
-      const haber = Number(f.haber || "0") || 0;
+      const debe = Math.round((parseFloat(f.debe || "0") || 0) * 100);
+      const haber = Math.round((parseFloat(f.haber || "0") || 0) * 100);
       return { debe: acc.debe + debe, haber: acc.haber + haber };
     },
     { debe: 0, haber: 0 }
   );
-  return (suma.debe - suma.haber).toFixed(2);
+  return ((suma.debe - suma.haber) / 100).toFixed(2);
 }
 
 export function filaEstaCuadrada(f: FilaApunte): boolean {

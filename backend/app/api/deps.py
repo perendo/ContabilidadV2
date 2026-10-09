@@ -7,7 +7,7 @@ from sqlmodel import Session, select
 
 from app.api.errors import ApiError
 from app.db import get_session
-from app.models import Ejercicio, Usuario, empresa_usuario
+from app.models import Ejercicio, Empresa, Usuario, empresa_usuario
 from app.services.seguridad import decode_access_token
 
 _bearer = HTTPBearer(auto_error=False)
@@ -42,6 +42,9 @@ def get_empresa_context(
     if not x_empresa_id.isdigit():
         raise ApiError(400, "Cabecera X-Empresa-Id inválida")
     empresa_id = int(x_empresa_id)
+    empresa = session.get(Empresa, empresa_id)
+    if empresa is None or not empresa.activa:
+        raise ApiError(403, "Sin acceso a la empresa o empresa inactiva")
     vinculo = session.exec(
         select(empresa_usuario).where(
             empresa_usuario.c.usuario_id == usuario.id,

@@ -1,3 +1,4 @@
+from sqlalchemy import func
 from fastapi import APIRouter, Query
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import select
@@ -26,7 +27,12 @@ def listar_cuentas(
         filtro = filtro.where(Cuenta.codigo.like(like) | Cuenta.nombre.like(like))
     if nivel is not None:
         filtro = filtro.where(Cuenta.nivel == nivel)
-    total = len(session.exec(filtro).all())
+    count_stmt = select(func.count(Cuenta.id)).where(Cuenta.ejercicio_id == ejercicio)
+    if query:
+        count_stmt = count_stmt.where(Cuenta.codigo.like(like) | Cuenta.nombre.like(like))
+    if nivel is not None:
+        count_stmt = count_stmt.where(Cuenta.nivel == nivel)
+    total = session.exec(count_stmt).one()
     cuentas = session.exec(filtro.order_by(Cuenta.codigo).offset(offset).limit(limit)).all()
     return Paginado(
         total=total,
