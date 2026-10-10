@@ -44,6 +44,9 @@ def _clean_tables():
     yield
     with engine.begin() as conn:
         for table in (
+            "movimiento_banco",
+            "regla_banco",
+            "log_procesamiento_banco",
             "apunte",
             "asiento",
             "cuenta",

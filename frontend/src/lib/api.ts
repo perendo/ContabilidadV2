@@ -61,6 +61,163 @@ export interface AsientoDetalle extends Omit<AsientoResumen, "total_debe" | "tot
   apuntes: { cuenta_id: number; cuenta_codigo: string; debe: string; haber: string }[];
 }
 
+// Informes - Libro Mayor
+export interface CuentaRef {
+  codigo: string;
+  nombre: string;
+  nivel: number;
+}
+
+export interface MovimientoMayor {
+  fecha: string;
+  numero: number;
+  asiento_id: number;
+  concepto: string;
+  debe: string;
+  haber: string;
+  saldo: string;
+}
+
+export interface MayorCuenta {
+  cuenta: CuentaRef;
+  desde: string | null;
+  hasta: string | null;
+  saldo_inicial: string;
+  movimientos: MovimientoMayor[];
+  total_debe: string;
+  total_haber: string;
+  saldo_final: string;
+}
+
+export interface FilaMayorCuenta {
+  codigo: string;
+  nombre: string;
+  nivel: number;
+  suma_debe: string;
+  suma_haber: string;
+  saldo: string;
+  saldo_tipo: "deudor" | "acreedor" | "cero";
+}
+
+export interface MayorGlobal {
+  ejercicio_id: number;
+  desde: string | null;
+  hasta: string | null;
+  cuentas: FilaMayorCuenta[];
+}
+
+// Informes - Balance de Sumas y Saldos
+export interface FilaBalance {
+  codigo: string;
+  nombre: string;
+  nivel: number;
+  suma_debe: string;
+  suma_haber: string;
+  saldo_deudor: string;
+  saldo_acreedor: string;
+}
+
+export interface Balance {
+  ejercicio_id: number;
+  desde: string | null;
+  hasta: string | null;
+  filas: FilaBalance[];
+  total_debe: string;
+  total_haber: string;
+  total_saldo_deudor: string;
+  total_saldo_acreedor: string;
+  cuadra: boolean;
+}
+
+// Banco - Conciliación Bancaria
+export interface MovimientoBanco {
+  id: number;
+  ejercicio_id: number;
+  fecha_operacion: string;
+  fecha_valor: string;
+  concepto: string;
+  referencia: string | null;
+  referencia_2: string | null;
+  importe: string;
+  saldo: string;
+  divisa: string;
+  codigo_banco: string | null;
+  numero_documento: string | null;
+  info_adicional: string | null;
+  procesado: boolean;
+  asiento_id: number | null;
+  regla_id: number | null;
+  hash_unicidad: string;
+  origen_archivo: string;
+}
+
+export interface ImportResponse {
+  importados: number;
+  duplicados: number;
+  errores: string[];
+  formato_detectado: "excel" | "csv" | "csb";
+}
+
+export interface ReglaBanco {
+  id: number;
+  empresa_id: number;
+  nombre: string;
+  patron_regex: string;
+  cuenta_debe: string;
+  cuenta_haber: string;
+  importe_fijo: string | null;
+  porcentaje: string | null;
+  prioridad: number;
+  auto_asentar: boolean;
+  activa: boolean;
+}
+
+export interface ReglaBancoIn {
+  nombre: string;
+  patron_regex: string;
+  cuenta_debe: string;
+  cuenta_haber: string;
+  importe_fijo?: string | null;
+  porcentaje?: string | null;
+  prioridad?: number;
+  auto_asentar?: boolean;
+  activa?: boolean;
+}
+
+export interface MatchItem {
+  movimiento_id: number;
+  fecha_operacion: string;
+  fecha_valor: string;
+  concepto: string;
+  importe: string;
+  saldo: string;
+  cuenta_debe: string;
+  cuenta_haber: string;
+  importe_calculado: string;
+}
+
+export interface SimularResponse {
+  matches: MatchItem[];
+}
+
+export interface ProcesarResponse {
+  creados: number;
+  pendientes: number;
+  fallidos: { movimiento_id: number; error: string }[];
+  log_id: number;
+}
+
+export interface LogProcesamiento {
+  id: number;
+  ejercicio_id: number;
+  usuario_id: number;
+  timestamp: string;
+  reglas_aplicadas_json: string;
+  creados: number;
+  pendientes: number;
+  fallidos_json: string;
+}
+
 const CONTEXTO_KEY = "contexto-cambiado";
 
 function getCookie(nombre: string): string | undefined {
@@ -224,4 +381,134 @@ export const api = {
     return request<Paginado<AsientoResumen>>(`/asientos/borradores?${q.toString()}`);
   },
   asientoDetalle: (id: number) => request<AsientoDetalle>(`/asientos/${id}`),
+
+  // Banco - Conciliación Bancaria
+  banco: {
+    importar: (file: File, ignorarDuplicados = false) => {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("ignorar_duplicados", String(ignorarDuplicados));
+      return request<ImportResponse>("/banco/importar", {
+        method: "POST",
+        body: formData,
+      });
+    },
+    pendientes: (params: { desde?: string; hasta?: string; codigo_banco?: string; offset?: number; limit?: number } = {}) => {
+      const q = new URLSearchParams();
+      if (params.desde) q.set("desde", params.desde);
+      if (params.hasta) q.set("hasta", params.hasta);
+      if (params.codigo_banco) q.set("codigo_banco", params.codigo_banco);
+      q.set("offset", String(params.offset ?? 0));
+      q.set("limit", String(params.limit ?? 50));
+      return request<MovimientoBanco[]>(`/banco/pendientes?${q.toString()}`);
+    },
+    reglas: () => request<ReglaBanco[]>("/banco/reglas"),
+    crearRegla: (payload: ReglaBancoIn) =>
+      request<ReglaBanco>("/banco/reglas", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      }),
+    actualizarRegla: (id: number, payload: ReglaBancoIn) =>
+      request<ReglaBanco>(`/banco/reglas/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      }),
+    borrarRegla: (id: number) =>
+      request<void>(`/banco/reglas/${id}`, { method: "DELETE" }),
+    simularRegla: (id: number, params: { desde?: string; hasta?: string } = {}) => {
+      const q = new URLSearchParams();
+      if (params.desde) q.set("desde", params.desde);
+      if (params.hasta) q.set("hasta", params.hasta);
+      return request<{ matches: MatchItem[] }>(`/banco/reglas/${id}/simular?${q.toString()}`);
+    },
+    procesar: (params: { desde?: string; hasta?: string } = {}) => {
+      const q = new URLSearchParams();
+      if (params.desde) q.set("desde", params.desde);
+      if (params.hasta) q.set("hasta", params.hasta);
+      return request<ProcesarResponse>(`/banco/procesar?${q.toString()}`, { method: "POST" });
+    },
+    logs: (params: { desde?: string; hasta?: string; offset?: number; limit?: number } = {}) => {
+      const q = new URLSearchParams();
+      if (params.desde) q.set("desde", params.desde);
+      if (params.hasta) q.set("hasta", params.hasta);
+      q.set("offset", String(params.offset ?? 0));
+      q.set("limit", String(params.limit ?? 50));
+      return request<LogProcesamiento[]>(`/banco/logs?${q.toString()}`);
+    },
+  },
+
+  // Informes - Libro Mayor
+  mayor: (cuenta: string, params: { desde?: string; hasta?: string } = {}) => {
+    const q = new URLSearchParams();
+    q.set("cuenta", cuenta);
+    if (params.desde) q.set("desde", params.desde);
+    if (params.hasta) q.set("hasta", params.hasta);
+    return request<MayorCuenta>(`/informes/mayor?${q.toString()}`);
+  },
+  mayorCuentas: (params: { desde?: string; hasta?: string } = {}) => {
+    const q = new URLSearchParams();
+    if (params.desde) q.set("desde", params.desde);
+    if (params.hasta) q.set("hasta", params.hasta);
+    return request<MayorGlobal>(`/informes/mayor/cuentas?${q.toString()}`);
+  },
+
+  // Informes - Balance de Sumas y Saldos
+  balance: (params: { desde?: string; hasta?: string } = {}) => {
+    const q = new URLSearchParams();
+    if (params.desde) q.set("desde", params.desde);
+    if (params.hasta) q.set("hasta", params.hasta);
+    return request<Balance>(`/informes/balance?${q.toString()}`);
+  },
+
+  // Exportación
+  descargarInforme: async (
+    tipo: "mayor" | "balance",
+    formato: "csv" | "pdf",
+    params: { cuenta?: string; desde?: string; hasta?: string } = {}
+  ) => {
+    const q = new URLSearchParams();
+    q.set("formato", formato);
+    if (tipo === "mayor" && params.cuenta) q.set("cuenta", params.cuenta);
+    if (params.desde) q.set("desde", params.desde);
+    if (params.hasta) q.set("hasta", params.hasta);
+
+    const headers: Record<string, string> = {};
+    const empresaId = getEmpresaId();
+    const ejercicioId = getEjercicioId();
+    if (empresaId) headers["X-Empresa-Id"] = empresaId;
+    if (ejercicioId) headers["X-Ejercicio-Id"] = ejercicioId;
+
+    const path = `/informes/${tipo}/export?${q.toString()}`;
+    const res = await fetch(`/api/v1${path}`, { headers, credentials: "include" });
+    if (!res.ok) {
+      const text = await res.text();
+      let detail = `Error ${res.status}`;
+      try {
+        const data = JSON.parse(text);
+        if (data.detail) detail = data.detail;
+      } catch {
+        detail = text || detail;
+      }
+      throw new ApiError(res.status, detail);
+    }
+
+    const blob = await res.blob();
+    const disposition = res.headers.get("Content-Disposition");
+    let filename = `${tipo}.${formato}`;
+    if (disposition) {
+      const match = disposition.match(/filename="?([^"]+)"?/);
+      if (match) filename = match[1];
+    }
+
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  },
 };

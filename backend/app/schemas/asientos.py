@@ -63,6 +63,8 @@ class AsientoOut(BaseModel):
     created_at: datetime | None = None
     asentado_at: datetime | None = None
     version: int | None = None
+    origen: str | None = None  # auto | manual | importado
+    regla_id: int | None = None
 
 
 class AsientoResumen(BaseModel):

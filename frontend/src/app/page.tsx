@@ -7,6 +7,8 @@ const accesos = [
   { href: "/asientos", titulo: "Nuevo asiento", descripcion: "Registra un asiento contable y asiéntalo." },
   { href: "/diario", titulo: "Diario y borradores", descripcion: "Consulta el libro diario y los borradores." },
   { href: "/cuentas", titulo: "Plan de cuentas", descripcion: "Consulta y crea cuentas del ejercicio." },
+  { href: "/mayor", titulo: "Libro Mayor", descripcion: "Consulta el Mayor por cuenta y el listado global." },
+  { href: "/balance", titulo: "Balance de Sumas y Saldos", descripcion: "Genera el Balance con agregación jerárquica y cuatro columnas." },
 ];
 
 export default function DashboardPage() {
