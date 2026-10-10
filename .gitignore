@@ -26,6 +26,9 @@ coverage/
 .env.local
 .env*.local
 
+# Datos de ejemplo / extractos bancarios
+Data/
+
 # Tools
 .vscode/
 .idea/
