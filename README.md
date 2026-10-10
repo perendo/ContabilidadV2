@@ -1,6 +1,6 @@
 # ContabilidadV2
 
-Núcleo contable multi-tenant (Fase 1): registro de **Plan General Contable (PGC) de España** y **asientos diarios** con partida doble, flujo borrador → asentado y Diario, sobre una API FastAPI y un cliente Next.js.
+Núcleo contable multi-tenant (Fase 1): registro de **Plan General Contable (PGC) de España** y **asientos diarios** con partida doble, flujo borrador → asentado y Diario, sobre una API FastAPI y un cliente Next.js. Sobre esa base se añaden informes (**Libro Mayor** por cuenta y **listado global**, y **Balance de Sumas y Saldos**), **conciliación bancaria** con auto-matching y el diseño de los **módulos fiscales** (Libros Registro de IVA, retenciones IRPF e Impuesto sobre Sociedades).
 
 La lógica contable (validaciones, cuadre, correlativos, cierres de periodo y aislamiento entre empresas) reside **exclusivamente en el backend**. El frontend calcula la diferencia Δ en tiempo real solo como ayuda de entrada; la autoridad del cuadre es el servidor. Reglas vinculantes en [`.specify/memory/constitution.md`](.specify/memory/constitution.md).
 
@@ -15,7 +15,10 @@ La lógica contable (validaciones, cuadre, correlativos, cierres de periodo y ai
 - **Ejercicios cerrados**: bloquean cualquier escritura (409).
 - **Concurrencia SQLite multipuesto**: `journal_mode=WAL`, `busy_timeout=5000`, `foreign_keys=ON`.
 - **Esquema versionado con Alembic** (nunca `create_all`).
-- **Frontend MD3**: tema claro/oscuro (MUI v6), selector global de Empresa/Ejercicio, formulario de asientos con Δ en tiempo real y Diario paginado/expandible con pestaña de borradores.
+- **Frontend MD3**: tema claro/oscuro (MUI v6), selector global de Empresa/Ejercicio, formulario de asientos con Δ en tiempo real, Diario paginado/expandible con pestaña de borradores, y páginas de **Mayor** y **Balance** con export a CSV/PDF.
+- **Informes** (spec 003): **Libro Mayor** por cuenta (saldo inicial, movimientos y saldo final, con filtro de fechas) y **listado global** de cuentas, más el **Balance de Sumas y Saldos**. La exportación CSV/PDF se genera en el servidor; el cálculo vive solo en el backend.
+- **Conciliación bancaria** (spec 004): importación de extractos (**Excel Santander, CSV estándar, CSB/Cuaderno 43**, con detección de formato y de duplicados), **reglas de auto-matching** (regex sobre el concepto + importe fijo/porcentaje) que generan asientos **reutilizando el servicio contable** (borrador o asentado con correlativo y ΣDebe = ΣHaber), y cola de **movimientos pendientes**. Cada procesamiento queda trazado en `log_procesamiento_banco`.
+- **Módulos fiscales** (spec 005, *en diseño*): Libros Registro de IVA, retenciones IRPF e Impuesto sobre Sociedades, con generación de ficheros AEAT de posiciones fijas (303/111/115/200) solo con periodos cerrados y sin presentación telemática.
 
 ## Stack
 
@@ -110,6 +113,17 @@ Base path `/api/v1`. Cuerpos JSON; fechas `YYYY-MM-DD`; importes como cadena dec
 | GET | `/asientos` | Diario de asentados (paginado/filtrable) |
 | GET | `/asientos/borradores` | Borradores del ejercicio |
 | GET | `/asientos/{id}` | Detalle con apuntes |
+| GET | `/informes/mayor` | Libro Mayor de una cuenta (fechas opcionales) |
+| GET | `/informes/mayor/cuentas` | Listado global de cuentas con saldos |
+| GET | `/informes/balance` | Balance de Sumas y Saldos |
+| GET | `/informes/mayor/export` · `/informes/balance/export` | Export CSV/PDF (generado en el servidor) |
+| POST | `/banco/importar` | Importar extracto (multipart; detecta formato y duplicados) |
+| GET | `/banco/pendientes` | Movimientos pendientes de casar |
+| GET/POST | `/banco/reglas` | Listar / crear reglas de auto-matching |
+| GET/PUT/DELETE | `/banco/reglas/{id}` | Detalle / editar / borrar regla |
+| POST | `/banco/reglas/{id}/simular` | Simular el match de una regla sin asentar |
+| POST | `/banco/procesar` | Generar asientos de los pendientes aplicando reglas |
+| GET | `/banco/logs` | Trazabilidad de los procesamientos |
 | GET | `/health` | Liveness del servicio (`{"status":"ok"}`) |
 
 Códigos: `400` contexto/firma inválida · `401` no autenticado · `403` sin acceso · `404` inexistente · `409` conflicto de estado/unicidad · `422` validación/descuadre.
@@ -135,10 +149,10 @@ npm test
 ContabilidadV2/
 ├── backend/
 │   ├── app/
-│   │   ├── api/         # routers: auth, empresas, cuentas, asientos, deps, errors
-│   │   ├── models/      # SQLModel: identidad y contable
-│   │   ├── schemas/     # Pydantic (request/response)
-│   │   ├── services/    # lógica contable: cuadre, correlativo, identidad, seguridad
+│   │   ├── api/         # routers: auth, empresas, cuentas, asientos, informes, banco, deps, errors
+│   │   ├── models/      # SQLModel: identidad, contable y banco
+│   │   ├── schemas/     # Pydantic: identidad, contable, informes y banco
+│   │   ├── services/    # lógica: cuadre, correlativo, identidad, seguridad, informes, banco
 │   │   ├── pgc.py       # PGC base curado (niveles 1-3) + siembra por ejercicio
 │   │   ├── config.py    # settings (pydantic-settings)
 │   │   ├── db.py        # motor SQLite + pragmas WAL
@@ -146,27 +160,31 @@ ContabilidadV2/
 │   │   ├── rate_limit.py # Limiter de slowapi (evita import circular con api/auth)
 │   │   └── seed.py      # usuarios de desarrollo + backfill del PGC base
 │   ├── alembic/         # migraciones (único camino de evolución del esquema)
-│   ├── tests/           # unit/ e integration/
+│   ├── tests/           # unit/ e integration/ (incluye informes y banco)
+│   ├── impuestos/       # ficheros AEAT (spec 005, planificado; gitignored)
 │   └── pyproject.toml
 ├── frontend/
 │   ├── src/
-│   │   ├── app/         # App Router: layout, login, seleccion, dashboard, asientos, diario, cuentas
-│   │   ├── components/  # ContextSelector, FormAsiento, Diario, PlanCuentas (árbol + subcuentas)
+│   │   ├── app/         # App Router: login, seleccion, asientos, diario, cuentas, mayor, balance
+│   │   ├── components/  # ContextSelector, FormAsiento, Diario, PlanCuentas, Mayor, Balance
 │   │   └── lib/         # api.ts (cliente + contexto), theme.ts, useCargar.ts
 │   ├── tests/           # vitest
 │   └── package.json
-├── specs/001-modulo-core-contable/   # spec, plan, tasks, contratos, quickstart
-└── .specify/            # constitución y flujo Spec Kit
+├── specs/               # 001 núcleo · 002 hardening · 003 mayor/balance · 004 bancos · 005 fiscales
+└── .specify/            # constitución, feature.json y planes (`plans/01-modulos-fiscales.md`)
 ```
 
 ## Documentación
 
 - Constitución y principios: [`.specify/memory/constitution.md`](.specify/memory/constitution.md)
-- Feature y contratos: [`specs/001-modulo-core-contable/`](specs/001-modulo-core-contable/) (incluye `quickstart.md` para validación end-to-end)
+- Specs por feature (cada una con `spec.md`, `plan.md`, `tasks.md` y, cuando aplica, `contracts/` y `quickstart.md`):
+  - `001-modulo-core-contable` · `002-security-code-hardening` · `003-libro-mayor-balance` · `004-conciliacion-bancaria` · `005-modulos-fiscales` → [`specs/`](specs/)
+- Plan de diseño de los módulos fiscales: [`.specify/plans/01-modulos-fiscales.md`](.specify/plans/01-modulos-fiscales.md)
 - Guía para agentes: [`AGENTS.md`](AGENTS.md)
 
 ## Roadmap
 
-- **Fase 1 (actual)**: PGC, asientos diarios, Diario. *Pendiente*: **Libro Mayor sencillo**.
-- **Fase 2**: control de concurrencia y validaciones de cierre de periodo; Balance de Sumas y Saldos.
-- **Fase 3**: gestión de IVA/impuestos, facturación básica y herramientas auxiliares.
+- **Fase 1 (completada)**: PGC base + subcuentas, asientos diarios (borrador → asentado), Diario y contexto multi-tenant.
+- **Fase 1.1 (completada)**: informe de **Libro Mayor** y **listado global** + **Balance de Sumas y Saldos** con export CSV/PDF (spec 003).
+- **Fase 1.2 (completada)**: **conciliación bancaria** con importación de extractos y reglas de auto-matching (spec 004).
+- **Fase 1.3 (diseño)**: **módulos fiscales** — Libros Registro de IVA, retenciones IRPF e Impuesto sobre Sociedades, con ficheros AEAT (spec 005).
