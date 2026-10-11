@@ -1,10 +1,11 @@
 """Arranca el backend (uvicorn) y el frontend (Next.js) de forma portable (Windows/Linux/macOS).
 Aplica las migraciones, siembra los usuarios de desarrollo, abre los procesos por servidor,
-espera a que ambos estén operativos y abre el navegador.
-"""
+espera a que ambos estén operativos y abre el navegador."""
+
 from __future__ import annotations
 
 import os
+import secrets
 import signal
 import socket
 import subprocess
@@ -32,6 +33,48 @@ except (AttributeError, ValueError):
 
 def log(msg: str = "") -> None:
     print(msg, flush=True)
+
+
+def ensure_env_file() -> None:
+    """Garantiza que exista un archivo .env válido con APP_JWT_SECRET para el desarrollo local."""
+    env_root = ROOT / ".env"
+    env_backend = BACKEND / ".env"
+
+    target_env = env_root if env_root.exists() else (env_backend if env_backend.exists() else env_root)
+
+    jwt_secret_present = False
+    content = ""
+    if target_env.exists():
+        try:
+            content = target_env.read_text(encoding="utf-8")
+            for line in content.splitlines():
+                line = line.strip()
+                if line.startswith("APP_JWT_SECRET=") and len(line.split("=", 1)[1].strip("'\"")) >= 16:
+                    jwt_secret_present = True
+                    break
+        except Exception:
+            pass
+
+    if not jwt_secret_present:
+        generated = secrets.token_urlsafe(32)
+        log("      [INFO] Configurando APP_JWT_SECRET local en .env...")
+        with open(target_env, "a" if target_env.exists() else "w", encoding="utf-8") as f:
+            if target_env.exists() and content and not content.endswith("\n"):
+                f.write("\n")
+            f.write(f"APP_JWT_SECRET={generated}\n")
+            if not any(l.startswith("APP_ENVIRONMENT=") for l in content.splitlines()):
+                f.write("APP_ENVIRONMENT=development\n")
+
+    # También asegurar que la variable de entorno esté cargada en os.environ para subprocesos
+    if not os.getenv("APP_JWT_SECRET"):
+        for env_path in [target_env, env_root, env_backend]:
+            if env_path.exists():
+                for line in env_path.read_text(encoding="utf-8").splitlines():
+                    if line.startswith("APP_JWT_SECRET="):
+                        os.environ["APP_JWT_SECRET"] = line.split("=", 1)[1].strip("'\" \r\n")
+                        break
+        if not os.getenv("APP_JWT_SECRET"):
+            os.environ["APP_JWT_SECRET"] = secrets.token_urlsafe(32)
 
 
 def port_pids(port: int) -> list[str]:
@@ -79,7 +122,7 @@ def stop_port(port: int, name: str) -> None:
 
 def run_step(step: str, args: list[str], cwd: Path) -> None:
     log(step)
-    result = subprocess.run(args, cwd=str(cwd), check=False)
+    result = subprocess.run(args, cwd=str(cwd), env=os.environ, check=False)
     if result.returncode != 0:
         log(f"[ERROR] El comando falló (código {result.returncode}): {' '.join(args)}")
         if sys.stdin.isatty():
@@ -94,6 +137,7 @@ def launch(title: str, command: str, cwd: Path) -> subprocess.Popen:
         return subprocess.Popen(
             f'cmd /k "{command}"',
             cwd=str(cwd),
+            env=os.environ,
             creationflags=CREATE_NEW_CONSOLE,
             shell=False,
         )
@@ -101,6 +145,7 @@ def launch(title: str, command: str, cwd: Path) -> subprocess.Popen:
         return subprocess.Popen(
             command,
             cwd=str(cwd),
+            env=os.environ,
             shell=True,
         )
 
@@ -125,6 +170,8 @@ def main() -> int:
     log("=" * 44)
     log()
     python = sys.executable
+
+    ensure_env_file()
 
     log("[0/4] Comprobando servidores previos en los puertos...")
     stop_port(BACKEND_PORT, "backend")
