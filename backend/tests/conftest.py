@@ -14,11 +14,13 @@ from alembic import command
 from alembic.config import Config
 from fastapi.testclient import TestClient
 from sqlalchemy import text
+from sqlmodel import select
 
 from app.config import get_settings
 from app.db import engine, get_session
 from app.main import app
-from app.models import Ejercicio, Empresa, Usuario, empresa_usuario
+from app.models import Cuenta, Ejercicio, Empresa, Usuario, empresa_usuario
+from app.pgc import PGC_BASE
 from app.services.seguridad import create_access_token, hash_password
 
 get_settings.cache_clear()
@@ -47,6 +49,10 @@ def _clean_tables():
             "movimiento_banco",
             "regla_banco",
             "log_procesamiento_banco",
+            "fichero_presentacion",
+            "liquidacion_impuesto_sociedades",
+            "linea_factura_iva",
+            "factura",
             "apunte",
             "asiento",
             "cuenta",
@@ -149,5 +155,48 @@ def contexto(session, make_usuario, make_empresa, make_ejercicio, make_cuenta):
             "ejercicio": ejercicio,
             "cuentas": {"banco": c_in, "proveedor": c_out, "caja": c_caja},
         }
+
+    return _build
+
+
+@pytest.fixture()
+def contexto_fiscal(session, contexto):
+    """`contexto()` con el PGC base completo sembrado + 4751 (retenciones).
+
+    Necesario para las facturas: el servicio exige 400/430/472/477/600/700 y,
+    si hay retenciones, 4751. `sembrar_pgc` se salta el ejercicio porque
+    `contexto` ya crea 3 cuentas, así que se añaden los códigos que falten.
+    """
+
+    def _build(**kwargs):
+        ctx = contexto(**kwargs)
+        existentes = {
+            c.codigo
+            for c in session.exec(
+                select(Cuenta).where(Cuenta.ejercicio_id == ctx["ejercicio"].id)
+            ).all()
+        }
+        for codigo, nombre in PGC_BASE:
+            if codigo not in existentes:
+                session.add(
+                    Cuenta(
+                        ejercicio_id=ctx["ejercicio"].id,
+                        codigo=codigo,
+                        nombre=nombre,
+                        nivel=len(codigo),
+                    )
+                )
+                existentes.add(codigo)
+        if "4751" not in existentes:
+            session.add(
+                Cuenta(
+                    ejercicio_id=ctx["ejercicio"].id,
+                    codigo="4751",
+                    nombre="Hacienda Pública, acreedora por retenciones practicadas",
+                    nivel=4,
+                )
+            )
+        session.commit()
+        return ctx
 
     return _build

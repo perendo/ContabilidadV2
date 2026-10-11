@@ -220,6 +220,175 @@ export interface LogProcesamiento {
   fallidos_json: string;
 }
 
+// Facturas, Libros de IVA y Retenciones (spec 005)
+export interface LineaFacturaIVAIn {
+  numero_linea: number;
+  descripcion: string;
+  base_imponible: string;
+  tipo_iva: string;
+  cuota_iva?: string | null;
+  tipo_re?: string | null;
+  cuota_re?: string | null;
+  operacion_exenta?: boolean;
+  base_retencion?: string | null;
+  pct_retencion?: string | null;
+  cuota_retencion?: string | null;
+}
+
+export interface FacturaIn {
+  origen: "venta" | "compra";
+  numero: string;
+  fecha: string;
+  fecha_operacion?: string | null;
+  tercero_cif: string;
+  tercero_razon_social: string;
+  solo_identificativo?: boolean;
+  tipo_retencion?: "111" | "115" | null;
+  notas?: string | null;
+  lineas: LineaFacturaIVAIn[];
+}
+
+export interface LineaFacturaIVAOut {
+  id: number;
+  numero_linea: number;
+  descripcion: string;
+  base_imponible: string;
+  tipo_iva: string;
+  cuota_iva: string;
+  tipo_re: string | null;
+  cuota_re: string | null;
+  operacion_exenta: boolean;
+  base_retencion: string | null;
+  pct_retencion: string | null;
+  cuota_retencion: string | null;
+}
+
+export interface FacturaOut {
+  id: number;
+  ejercicio_id: number;
+  origen: string;
+  numero: string;
+  fecha: string;
+  fecha_operacion: string | null;
+  tercero_cif: string;
+  tercero_razon_social: string;
+  solo_identificativo: boolean;
+  tipo_retencion: string | null;
+  estado: string;
+  notas: string | null;
+  asiento_id: number | null;
+  creado_por_usuario_id: number;
+  created_at: string | null;
+  lineas: LineaFacturaIVAOut[];
+}
+
+export interface FacturaResumen {
+  id: number;
+  origen: string;
+  numero: string;
+  fecha: string;
+  tercero_cif: string;
+  tercero_razon_social: string;
+  tipo_retencion: string | null;
+  estado: string;
+  asiento_id: number | null;
+}
+
+export type FacturasPaginado = Paginado<FacturaResumen>;
+
+export interface LibroIVARow {
+  fecha: string;
+  numero: string;
+  tercero_cif: string;
+  tercero_razon_social: string;
+  base_imponible: string;
+  tipo_iva: string;
+  cuota_iva: string;
+  total: string;
+  asiento_id: number | null;
+}
+
+export interface TotalPorTipo {
+  tipo_iva: string;
+  base: string;
+  cuota: string;
+}
+
+export interface LibroIVAResponse {
+  origen: string;
+  desde: string;
+  hasta: string;
+  operaciones: LibroIVARow[];
+  totales_por_tipo: TotalPorTipo[];
+  total_base: string;
+  total_cuota: string;
+}
+
+export interface ResumenRetencionItem {
+  tercero_cif: string;
+  tercero_razon_social: string;
+  base_retencion: string;
+  cuota_retencion: string;
+  numero_facturas: number;
+}
+
+export interface RetencionesResponse {
+  tipo: string;
+  desde: string;
+  hasta: string;
+  por_perceptor: ResumenRetencionItem[];
+  total_base: string;
+  total_retencion: string;
+}
+
+// Liquidación del Impuesto sobre Sociedades (spec 005)
+export interface AjusteIS {
+  concepto: string;
+  sentido: "aumento" | "disminucion";
+  importe: string;
+}
+
+export interface LiquidacionISIn {
+  resultado_contable: string;
+  ajustes: AjusteIS[];
+  tipo_gravamen?: string;
+  retenciones_pagos_cuenta?: string;
+}
+
+export interface LiquidacionISOut {
+  id: number;
+  ejercicio_id: number;
+  resultado_contable: string;
+  ajustes: AjusteIS[];
+  tipo_gravamen: string;
+  retenciones_pagos_cuenta: string;
+  base_imponible: string | null;
+  cuota_integra: string | null;
+  cuota_diferencial: string | null;
+  estado: string;
+  asiento_id: number | null;
+  creado_por_usuario_id: number | null;
+  cerrado_por_usuario_id: number | null;
+  created_at: string | null;
+  cerrado_at: string | null;
+}
+
+// Presentación AEAT (spec 005)
+export interface CasillaPresentacion {
+  casilla: number;
+  label: string;
+  importe: string;
+}
+
+export interface PresentacionVista {
+  modelo: string;
+  periodo: string;
+  cerrada: boolean;
+  resumen: Record<string, string | number | null>;
+  casillas: CasillaPresentacion[];
+  bloque_descarga: { habilitado: boolean; motivo: string | null };
+}
+
 const CONTEXTO_KEY = "contexto-cambiado";
 
 function getCookie(nombre: string): string | undefined {
@@ -299,6 +468,44 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     throw new ApiError(res.status, detail);
   }
   return data as T;
+}
+
+async function descargarFichero(path: string, fallbackFilename: string): Promise<void> {
+  const headers: Record<string, string> = {};
+  const empresaId = getEmpresaId();
+  const ejercicioId = getEjercicioId();
+  if (empresaId) headers["X-Empresa-Id"] = empresaId;
+  if (ejercicioId) headers["X-Ejercicio-Id"] = ejercicioId;
+
+  const res = await fetch(`/api/v1${path}`, { headers, credentials: "include" });
+  if (!res.ok) {
+    const text = await res.text();
+    let detail = `Error ${res.status}`;
+    try {
+      const data = JSON.parse(text);
+      if (data.detail) detail = data.detail;
+    } catch {
+      detail = text || detail;
+    }
+    throw new ApiError(res.status, detail);
+  }
+
+  const blob = await res.blob();
+  const disposition = res.headers.get("Content-Disposition");
+  let filename = fallbackFilename;
+  if (disposition) {
+    const match = disposition.match(/filename="?([^"]+)"?/);
+    if (match) filename = match[1];
+  }
+
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }
 
 export const api = {
@@ -495,42 +702,99 @@ export const api = {
     if (tipo === "mayor" && params.cuenta) q.set("cuenta", params.cuenta);
     if (params.desde) q.set("desde", params.desde);
     if (params.hasta) q.set("hasta", params.hasta);
+    await descargarFichero(`/informes/${tipo}/export?${q.toString()}`, `${tipo}.${formato}`);
+  },
 
-    const headers: Record<string, string> = {};
-    const empresaId = getEmpresaId();
-    const ejercicioId = getEjercicioId();
-    if (empresaId) headers["X-Empresa-Id"] = empresaId;
-    if (ejercicioId) headers["X-Ejercicio-Id"] = ejercicioId;
+  // Facturas, Libros de IVA y Retenciones (spec 005)
+  facturas: {
+    crear: (payload: FacturaIn) =>
+      request<FacturaOut>("/facturas", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      }),
+    listar: (
+      params: {
+        origen?: "venta" | "compra";
+        desde?: string;
+        hasta?: string;
+        tercero_cif?: string;
+        offset?: number;
+        limit?: number;
+      } = {}
+    ) => {
+      const q = new URLSearchParams();
+      if (params.origen) q.set("origen", params.origen);
+      if (params.desde) q.set("desde", params.desde);
+      if (params.hasta) q.set("hasta", params.hasta);
+      if (params.tercero_cif) q.set("tercero_cif", params.tercero_cif);
+      q.set("offset", String(params.offset ?? 0));
+      q.set("limit", String(params.limit ?? 50));
+      return request<FacturasPaginado>(`/facturas?${q.toString()}`);
+    },
+    detalle: (id: number) => request<FacturaOut>(`/facturas/${id}`),
+    libro: (params: { origen: "repercutido" | "soportado"; desde: string; hasta: string }) => {
+      const q = new URLSearchParams();
+      q.set("origen", params.origen);
+      q.set("desde", params.desde);
+      q.set("hasta", params.hasta);
+      return request<LibroIVAResponse>(`/facturas/libros/iva?${q.toString()}`);
+    },
+    exportarLibro: (params: {
+      origen: "repercutido" | "soportado";
+      desde: string;
+      hasta: string;
+    }) => {
+      const q = new URLSearchParams();
+      q.set("origen", params.origen);
+      q.set("desde", params.desde);
+      q.set("hasta", params.hasta);
+      return descargarFichero(
+        `/facturas/libros/iva/exportar?${q.toString()}`,
+        `libro_iva_${params.origen}.csv`
+      );
+    },
+    retenciones: (params: { tipo: "111" | "115"; desde: string; hasta: string }) => {
+      const q = new URLSearchParams();
+      q.set("tipo", params.tipo);
+      q.set("desde", params.desde);
+      q.set("hasta", params.hasta);
+      return request<RetencionesResponse>(`/facturas/retenciones?${q.toString()}`);
+    },
+  },
 
-    const path = `/informes/${tipo}/export?${q.toString()}`;
-    const res = await fetch(`/api/v1${path}`, { headers, credentials: "include" });
-    if (!res.ok) {
-      const text = await res.text();
-      let detail = `Error ${res.status}`;
-      try {
-        const data = JSON.parse(text);
-        if (data.detail) detail = data.detail;
-      } catch {
-        detail = text || detail;
-      }
-      throw new ApiError(res.status, detail);
-    }
+  // Liquidación del Impuesto sobre Sociedades (spec 005, US5)
+  impuestoSociedades: {
+    obtener: () => request<LiquidacionISOut>("/is"),
+    crear: (payload: LiquidacionISIn) =>
+      request<LiquidacionISOut>("/is", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      }),
+    actualizar: (payload: LiquidacionISIn) =>
+      request<LiquidacionISOut>("/is", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      }),
+    cerrar: () => request<LiquidacionISOut>("/is/cerrar", { method: "POST" }),
+  },
 
-    const blob = await res.blob();
-    const disposition = res.headers.get("Content-Disposition");
-    let filename = `${tipo}.${formato}`;
-    if (disposition) {
-      const match = disposition.match(/filename="?([^"]+)"?/);
-      if (match) filename = match[1];
-    }
-
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+  // Presentación AEAT (spec 005, US-PRES)
+  presentaciones: {
+    vista: (modelo: string, periodo: string) => {
+      const q = new URLSearchParams();
+      q.set("periodo", periodo);
+      return request<PresentacionVista>(`/presentaciones/${modelo}?${q.toString()}`);
+    },
+    descargarFichero: (modelo: string, periodo: string) => {
+      const q = new URLSearchParams();
+      q.set("periodo", periodo);
+      return descargarFichero(
+        `/presentaciones/${modelo}/fichero?${q.toString()}`,
+        `${modelo}_${periodo}.txt`
+      );
+    },
   },
 };

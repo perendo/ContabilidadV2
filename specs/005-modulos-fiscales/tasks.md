@@ -31,9 +31,9 @@ description: "Task list for feature implementation"
 
 **Purpose**: Preparar el terreno para las tablas y servicios fiscales
 
-- [ ] T001 Crear `backend/app/models/fiscal.py` (módulo vacío con `__all__` a rellenar) y añadir la exportación en `backend/app/models/__init__.py`
-- [ ] T002 [P] Añadir `backend/impuestos/` a `.gitignore` (raíz) y crear la carpeta con un `.gitkeep`; documentar en `backend/README.md` que los ficheros AEAT se guardan en `impuestos/{empresa_id}/{anio}/`
-- [ ] T003 [P] Revisar `backend/pyproject.toml` (no se prevén dependencias nuevas; confirmar que `Alembic` y `openpyxl`/`pandas` existentes siguen declarados)
+- [X] T001 Crear `backend/app/models/fiscal.py` (módulo vacío con `__all__` a rellenar) y añadir la exportación en `backend/app/models/__init__.py`
+- [X] T002 [P] Añadir `backend/impuestos/` a `.gitignore` (raíz) y crear la carpeta con un `.gitkeep`; documentar en `backend/README.md` que los ficheros AEAT se guardan en `impuestos/{empresa_id}/{anio}/`
+- [X] T003 [P] Revisar `backend/pyproject.toml` (no se prevén dependencias nuevas; confirmar que `Alembic` y `openpyxl`/`pandas` existentes siguen declarados)
 
 ---
 
@@ -43,16 +43,16 @@ description: "Task list for feature implementation"
 
 **CRITICAL**: Ninguna user story puede comenzar hasta completar esta fase.
 
-- [ ] T004 Crear en `backend/app/models/fiscal.py` los enums como `str` (patrón proyecto, persistidos como `String`): `OrigenFactura` = `venta` | `compra`; `TipoRetencion` = `111` | `115`; estados `registrada` | `anulada` (factura) y `borrador` | `cerrada` (IS)
-- [ ] T005 [P] Crear clase `Factura` en `backend/app/models/fiscal.py` con campos de `data-model.md`: `ejercicio_id` (FK RESTRICT), `origen` (String(10)), `numero` (String(50), no nulo), `fecha` (date), `fecha_operacion` (date nullable), `tercero_cif` (String(9)), `tercero_razon_social` (String(200)), `solo_identificativo` (bool default false), `tipo_retencion` (String(3) nullable), `estado` (default `registrada`), `notas` (String(1000) nullable), `asiento_id` (FK Asiento RESTRICT nullable), `creado_por_usuario_id` (FK Usuario), `created_at`; `UniqueConstraint(ejercicio_id, tercero_cif, numero)` → `uq_factura_ejercicio_cif_numero`; índices `ix_factura_ejercicio_fecha` y `ix_factura_ejercicio_origen`
-- [ ] T006 [P] Crear clase `LineaFacturaIVA` en `backend/app/models/fiscal.py`: `factura_id` (FK CASCADE), `numero_linea` (≥1), `descripcion` (String(300)), `base_imponible` (Numeric(19,2)), `tipo_iva` (Numeric(5,2)), `cuota_iva` (Numeric(19,2)), `tipo_re`/`cuota_re` (nullable), `operacion_exenta` (bool default false), `base_retencion`/`pct_retencion`/`cuota_retencion` (nullable); índice `ix_linea_factura_factura`
-- [ ] T007 [P] Crear clase `LiquidacionImpuestoSociedades` en `backend/app/models/fiscal.py`: 1 por ejercicio (`UniqueConstraint(ejercicio_id, name="uq_lis_ejercicio")`), `resultado_contable` (Numeric(19,2)), `ajustes_json` (String(12000)), `tipo_gravamen` (Numeric(5,2) default 25.00), `retenciones_pagos_cuenta` (Numeric(19,2) default 0), `base_imponible`/`cuota_integra`/`cuota_diferencial` (nullable, se congelan al cerrar), `estado` (default `borrador`), `asiento_id` nullable, `creado_por_usuario_id`, `cerrado_por_usuario_id` nullable, `created_at`/`cerrado_at`
-- [ ] T008 [P] Crear clase `FicheroPresentacion` en `backend/app/models/fiscal.py`: `ejercicio_id` (FK RESTRICT), `modelo` (String(3): 303|111|115|200), `periodo` (String(8), p.ej. `2026T4`/`2026`), `ruta` (String(255)), `hash_sha256` (String(64)), `generado_por_usuario_id` (FK), `generado_at`; `UniqueConstraint(ejercicio_id, modelo, periodo, name="uq_fichero_ejercicio_modelo_periodo")`
-- [ ] T009 Migración Alembic: `..\.venv\Scripts\python.exe -m alembic revision --autogenerate -m "módulos fiscales"`; corregir a mano (gotcha): reemplazar `sqlmodel.sql.sqltypes.AutoString` por `sa.String(...)` y añadir los índices `ix_factura_*`, `ix_linea_factura_factura`; comprobar que los enums quedan como `String`; `alembic upgrade head`
-- [ ] T010 Schemas Pydantic en `backend/app/schemas/facturas.py`, `presentaciones.py`, `is.py` con `model_config = ConfigDict(from_attributes=True)`: `LineaFacturaIVAIn/Out`, `FacturaIn/Out` (Decimal como string), `AjusteIS {concepto, sentido: aumento|disminucion, importe}`, `LiquidacionISIn/Out`, `PresentacionVista`, `FicheroOut`; validadores `field_validator` con 2 decimales
-- [ ] T011 [P] Helpers compartidos en `backend/app/services/fiscales_util.py`: `cuantizar2(d)` (`Decimal.quantize(0.01, ROUND_HALF_UP)`), `validar_cif(cif)` (string 9 dígitos, letra/patrón NIF/CIF), `_utcnow`; constantes de cuentas PGC por defecto `{400, 430, 600, 700, 472, 477, 4751, 473, 631}`
-- [ ] T012 [P] Base del generador AEAT en `backend/app/services/aeat.py`: clase/plantilla por modelo (estructura de registros `{nombre, posicion, longitud, tipo, padding}`, encoding y CRLF parametrizables) + método `validar_formato(registros)` que recorra la plantilla y compruebe longitudes/tipos antes de escribir el fichero (decisión R1/R2 research.md)
-- [ ] T013 [P] Tests del cimiento en `backend/tests/integration/test_fiscal_base.py`: migración en BD temporal aplica (`alembic upgrade head` vía conftest), unicidad CIF+numero+ejercicio eleva `IntegrityError` al insertar duplicado directo, `validar_cif` y `cuantizar2` (HALF_UP) pasan casos límite (0.005 → 0.01)
+- [X] T004 Crear en `backend/app/models/fiscal.py` los enums como `str` (patrón proyecto, persistidos como `String`): `OrigenFactura` = `venta` | `compra`; `TipoRetencion` = `111` | `115`; estados `registrada` | `anulada` (factura) y `borrador` | `cerrada` (IS)
+- [X] T005 [P] Crear clase `Factura` en `backend/app/models/fiscal.py` con campos de `data-model.md`: `ejercicio_id` (FK RESTRICT), `origen` (String(10)), `numero` (String(50), no nulo), `fecha` (date), `fecha_operacion` (date nullable), `tercero_cif` (String(9)), `tercero_razon_social` (String(200)), `solo_identificativo` (bool default false), `tipo_retencion` (String(3) nullable), `estado` (default `registrada`), `notas` (String(1000) nullable), `asiento_id` (FK Asiento RESTRICT nullable), `creado_por_usuario_id` (FK Usuario), `created_at`; `UniqueConstraint(ejercicio_id, tercero_cif, numero)` → `uq_factura_ejercicio_cif_numero`; índices `ix_factura_ejercicio_fecha` y `ix_factura_ejercicio_origen`
+- [X] T006 [P] Crear clase `LineaFacturaIVA` en `backend/app/models/fiscal.py`: `factura_id` (FK CASCADE), `numero_linea` (≥1), `descripcion` (String(300)), `base_imponible` (Numeric(19,2)), `tipo_iva` (Numeric(5,2)), `cuota_iva` (Numeric(19,2)), `tipo_re`/`cuota_re` (nullable), `operacion_exenta` (bool default false), `base_retencion`/`pct_retencion`/`cuota_retencion` (nullable); índice `ix_linea_factura_factura`
+- [X] T007 [P] Crear clase `LiquidacionImpuestoSociedades` en `backend/app/models/fiscal.py`: 1 por ejercicio (`UniqueConstraint(ejercicio_id, name="uq_lis_ejercicio")`), `resultado_contable` (Numeric(19,2)), `ajustes_json` (String(12000)), `tipo_gravamen` (Numeric(5,2) default 25.00), `retenciones_pagos_cuenta` (Numeric(19,2) default 0), `base_imponible`/`cuota_integra`/`cuota_diferencial` (nullable, se congelan al cerrar), `estado` (default `borrador`), `asiento_id` nullable, `creado_por_usuario_id`, `cerrado_por_usuario_id` nullable, `created_at`/`cerrado_at`
+- [X] T008 [P] Crear clase `FicheroPresentacion` en `backend/app/models/fiscal.py`: `ejercicio_id` (FK RESTRICT), `modelo` (String(3): 303|111|115|200), `periodo` (String(8), p.ej. `2026T4`/`2026`), `ruta` (String(255)), `hash_sha256` (String(64)), `generado_por_usuario_id` (FK), `generado_at`; `UniqueConstraint(ejercicio_id, modelo, periodo, name="uq_fichero_ejercicio_modelo_periodo")`
+- [X] T009 Migración Alembic: `..\.venv\Scripts\python.exe -m alembic revision --autogenerate -m "módulos fiscales"`; corregir a mano (gotcha): reemplazar `sqlmodel.sql.sqltypes.AutoString` por `sa.String(...)` y añadir los índices `ix_factura_*`, `ix_linea_factura_factura`; comprobar que los enums quedan como `String`; `alembic upgrade head`
+- [X] T010 Schemas Pydantic en `backend/app/schemas/facturas.py`, `presentaciones.py`, `is.py` con `model_config = ConfigDict(from_attributes=True)`: `LineaFacturaIVAIn/Out`, `FacturaIn/Out` (Decimal como string), `AjusteIS {concepto, sentido: aumento|disminucion, importe}`, `LiquidacionISIn/Out`, `PresentacionVista`, `FicheroOut`; validadores `field_validator` con 2 decimales
+- [X] T011 [P] Helpers compartidos en `backend/app/services/fiscales_util.py`: `cuantizar2(d)` (`Decimal.quantize(0.01, ROUND_HALF_UP)`), `validar_cif(cif)` (string 9 dígitos, letra/patrón NIF/CIF), `_utcnow`; constantes de cuentas PGC por defecto `{400, 430, 600, 700, 472, 477, 4751, 473, 631}`
+- [X] T012 [P] Base del generador AEAT en `backend/app/services/aeat.py`: clase/plantilla por modelo (estructura de registros `{nombre, posicion, longitud, tipo, padding}`, encoding y CRLF parametrizables) + método `validar_formato(registros)` que recorra la plantilla y compruebe longitudes/tipos antes de escribir el fichero (decisión R1/R2 research.md)
+- [X] T013 [P] Tests del cimiento en `backend/tests/integration/test_fiscal_base.py`: migración en BD temporal aplica (`alembic upgrade head` vía conftest), unicidad CIF+numero+ejercicio eleva `IntegrityError` al insertar duplicado directo, `validar_cif` y `cuantizar2` (HALF_UP) pasan casos límite (0.005 → 0.01)
 
 **Checkpoint**: Foundation lista — la implementación de user stories puede comenzar
 
@@ -68,17 +68,17 @@ description: "Task list for feature implementation"
 
 > **NOTE**: Escribir estos tests PRIMERO, asegurar que FALLAN antes de implementar
 
-- [ ] T014 [P] [US1] Integration test `test_factura_venta_asiento_cuadrado` en `backend/tests/integration/test_facturas.py`: venta 1000 @21% → apuntes (430 deb 1210 / 700 hab 1000 / 477 hab 210), ΣDebe=ΣHaber, `asiento_id` poblado, correlativo asignado
-- [ ] T015 [P] [US1] Integration test `test_duplicado_cif_numero_ejercicio_409` en `backend/tests/integration/test_facturas.py`: 2º POST mismo CIF+numero → 409 y no crea asiento; mismo numero en otro ejercicio → 201
-- [ ] T016 [P] [US1] Integration test `test_multi_tipo_iva_una_linea_por_tipo` en `backend/tests/integration/test_facturas.py`: dos líneas 21% y 10% → dos apuntes en 477 y total cuadra
-- [ ] T017 [P] [US1] Integration test `test_factura_sin_contexto_400_sin_acceso_403` en `backend/tests/integration/test_facturas.py` (patrón conftest `contexto`, vincular usuario a la empresa)
+- [X] T014 [P] [US1] Integration test `test_factura_venta_asiento_cuadrado` en `backend/tests/integration/test_facturas.py`: venta 1000 @21% → apuntes (430 deb 1210 / 700 hab 1000 / 477 hab 210), ΣDebe=ΣHaber, `asiento_id` poblado, correlativo asignado
+- [X] T015 [P] [US1] Integration test `test_duplicado_cif_numero_ejercicio_409` en `backend/tests/integration/test_facturas.py`: 2º POST mismo CIF+numero → 409 y no crea asiento; mismo numero en otro ejercicio → 201
+- [X] T016 [P] [US1] Integration test `test_multi_tipo_iva_una_linea_por_tipo` en `backend/tests/integration/test_facturas.py`: dos líneas 21% y 10% → dos apuntes en 477 y total cuadra
+- [X] T017 [P] [US1] Integration test `test_factura_sin_contexto_400_sin_acceso_403` en `backend/tests/integration/test_facturas.py` (patrón conftest `contexto`, vincular usuario a la empresa)
 
 ### Implementación para User Story 1
 
-- [ ] T018 [US1] Implementar `crear_factura(...)` en `backend/app/services/facturas.py`: validar CIF (`validar_cif`), cuotas vs `base×tipo/100` a 2dp (→422 si difiere), ejercicio abierto (→409), unicidad CIF+numero+ejercicio (→409, backstop BD); calcular asiento con cuentas de `fiscales_util.py`; **misma transacción**: insertar factura + líneas + asiento + apuntes y `session.commit()` único (reusar `services/asientos.py` para el cuadre y correlativo)
-- [ ] T019 [US1] Implementar `POST /api/v1/facturas` y `GET /api/v1/facturas` (paginado, filtros `origen`/`desde`/`hasta`/`tercero_cif`, default limit 50 max 200) y `GET /api/v1/facturas/{id}` en `backend/app/api/facturas.py`, registrando el router en `backend/app/main.py`
-- [ ] T020 [US1] Frontend: `FormFactura.tsx` en `frontend/src/components/` (líneas dinámicas base/tipo_iva, preview del asiento SOLO como UX — cálculo definitivo en backend) + página `frontend/src/app/facturas/nueva/page.tsx` y listado `frontend/src/app/facturas/page.tsx`
-- [ ] T021 [US1] Añadir tipos y métodos `api.facturas.*` (crear/listar/detalle) en `frontend/src/lib/api.ts`; manejar 409 duplicado con mensaje claro
+- [X] T018 [US1] Implementar `crear_factura(...)` en `backend/app/services/facturas.py`: validar CIF (`validar_cif`), cuotas vs `base×tipo/100` a 2dp (→422 si difiere), ejercicio abierto (→409), unicidad CIF+numero+ejercicio (→409, backstop BD); calcular asiento con cuentas de `fiscales_util.py`; **misma transacción**: insertar factura + líneas + asiento + apuntes y `session.commit()` único (reusar `services/asientos.py` para el cuadre y correlativo)
+- [X] T019 [US1] Implementar `POST /api/v1/facturas` y `GET /api/v1/facturas` (paginado, filtros `origen`/`desde`/`hasta`/`tercero_cif`, default limit 50 max 200) y `GET /api/v1/facturas/{id}` en `backend/app/api/facturas.py`, registrando el router en `backend/app/main.py`
+- [X] T020 [US1] Frontend: `FormFactura.tsx` en `frontend/src/components/` (líneas dinámicas base/tipo_iva, preview del asiento SOLO como UX — cálculo definitivo en backend) + página `frontend/src/app/facturas/nueva/page.tsx` y listado `frontend/src/app/facturas/page.tsx`
+- [X] T021 [US1] Añadir tipos y métodos `api.facturas.*` (crear/listar/detalle) en `frontend/src/lib/api.ts`; manejar 409 duplicado con mensaje claro
 
 **Checkpoint**: US1 funcional y testeable de forma independiente → **MVP alcanzado**
 
@@ -94,14 +94,14 @@ description: "Task list for feature implementation"
 
 ### Tests para User Story 2 (obligatorios)
 
-- [ ] T022 [P] [US2] Integration test `test_factura_compra_cuadra` en `backend/tests/integration/test_facturas.py`: compra 500 @21% → 600/472/400 correctos
-- [ ] T023 [P] [US2] Integration test `test_recargo_equivalencia_se_registra` en `backend/tests/integration/test_facturas.py`: base con `tipo_re:"5.20"`, `cuota_re:"26.00"` → RE en 472 y ΣDebe=ΣHaber
-- [ ] T024 [P] [US2] Integration test `test_operacion_exenta_sin_cuota` en `backend/tests/integration/test_facturas.py`: `operacion_exenta:true`, tipo 0 → sin línea 472, asiento de gasto puro
+- [X] T022 [P] [US2] Integration test `test_factura_compra_cuadra` en `backend/tests/integration/test_facturas.py`: compra 500 @21% → 600/472/400 correctos
+- [X] T023 [P] [US2] Integration test `test_recargo_equivalencia_se_registra` en `backend/tests/integration/test_facturas.py`: base con `tipo_re:"5.20"`, `cuota_re:"26.00"` → RE en 472 y ΣDebe=ΣHaber
+- [X] T024 [P] [US2] Integration test `test_operacion_exenta_sin_cuota` en `backend/tests/integration/test_facturas.py`: `operacion_exenta:true`, tipo 0 → sin línea 472, asiento de gasto puro
 
 ### Implementación para User Story 2
 
-- [ ] T025 [US2] Extender `crear_factura` en `backend/app/services/facturas.py` para `origen="compra"`: mapeo 600 (debe) / 472 (debe, IVA + RE) / 400 (haber); si `operacion_exenta` → `tipo_iva=0`/`cuota_iva=0` y omitir 472
-- [ ] T026 [US2] Frontend: soporte `origen="compra"` + campo RE en `frontend/src/components/FormFactura.tsx` (mismo formulario, campos condicionales)
+- [X] T025 [US2] Extender `crear_factura` en `backend/app/services/facturas.py` para `origen="compra"`: mapeo 600 (debe) / 472 (debe, IVA + RE) / 400 (haber); si `operacion_exenta` → `tipo_iva=0`/`cuota_iva=0` y omitir 472
+- [X] T026 [US2] Frontend: soporte `origen="compra"` + campo RE en `frontend/src/components/FormFactura.tsx` (mismo formulario, campos condicionales)
 
 **Checkpoint**: US1 y US2 funcionan de forma independiente
 
@@ -117,14 +117,14 @@ description: "Task list for feature implementation"
 
 ### Tests para User Story 3 (obligatorios)
 
-- [ ] T027 [P] [US3] Integration test `test_libro_iva_totales_por_tipo` en `backend/tests/integration/test_facturas.py`: varios tipos → agregados correctos, coincidentes con facturas
-- [ ] T028 [P] [US3] Integration test `test_libro_iva_exportar_csv` en `backend/tests/integration/test_facturas.py`: cabeceras (fecha, número, CIF, nombre, base, tipo, cuota, total), `;` como separador, BOM UTF-8
+- [X] T027 [P] [US3] Integration test `test_libro_iva_totales_por_tipo` en `backend/tests/integration/test_facturas.py`: varios tipos → agregados correctos, coincidentes con facturas
+- [X] T028 [P] [US3] Integration test `test_libro_iva_exportar_csv` en `backend/tests/integration/test_facturas.py`: cabeceras (fecha, número, CIF, nombre, base, tipo, cuota, total), `;` como separador, BOM UTF-8
 
 ### Implementación para User Story 3
 
-- [ ] T029 [US3] Implementar `listar_libro_iva(...)` y `exportar_libro_iva(...)` en `backend/app/services/facturas.py` (agregación por `tipo_iva`, números `Decimal` sensibles)
-- [ ] T030 [US3] Endpoints `GET /api/v1/facturas/libros/iva` (con response `{operaciones, totales_por_tipo, total_base, total_cuota}`) y `GET /api/v1/facturas/libros/iva/exportar` en `backend/app/api/facturas.py`
-- [ ] T031 [US3] Frontend: `frontend/src/components/LibroIVA.tsx` + página `frontend/src/app/fiscal/libros-iva/page.tsx` (tabs Soportado/Repercutido, filtro fechas, botón exportar CSV con `window.open` al endpoint)
+- [X] T029 [US3] Implementar `listar_libro_iva(...)` y `exportar_libro_iva(...)` en `backend/app/services/facturas.py` (agregación por `tipo_iva`, números `Decimal` sensibles)
+- [X] T030 [US3] Endpoints `GET /api/v1/facturas/libros/iva` (con response `{operaciones, totales_por_tipo, total_base, total_cuota}`) y `GET /api/v1/facturas/libros/iva/exportar` en `backend/app/api/facturas.py`
+- [X] T031 [US3] Frontend: `frontend/src/components/LibroIVA.tsx` + página `frontend/src/app/fiscal/libros-iva/page.tsx` (tabs Soportado/Repercutido, filtro fechas, botón exportar CSV con `window.open` al endpoint)
 
 **Checkpoint**: US3 funcional sobre facturas de US1/US2
 
@@ -140,16 +140,16 @@ description: "Task list for feature implementation"
 
 ### Tests para User Story 4 (obligatorios)
 
-- [ ] T032 [P] [US4] Integration test `test_factura_compra_con_retencion_cuadra` en `backend/tests/integration/test_facturas.py`: 1000 @21% ret 15% → apuntes exactos (600/472/400/4751), ΣDebe=ΣHaber
-- [ ] T033 [P] [US4] Integration test `test_resumen_111_por_cif` en `backend/tests/integration/test_facturas.py`: 3 facturas mismo CIF → agregado por CIF es la Σ exacta
-- [ ] T034 [P] [US4] Integration test `test_resumen_115_separa_alquileres` en `backend/tests/integration/test_facturas.py`: alquileres (115) no aparecen en 111 y sí en 115
-- [ ] T035 [P] [US4] Integration test `test_perceptor_sin_cif_valido_excluido_y_pct_fuera_rango` en `backend/tests/integration/test_facturas.py`: CIF inválido → 422; `pct_retencion > 100` → 422
+- [X] T032 [P] [US4] Integration test `test_factura_compra_con_retencion_cuadra` en `backend/tests/integration/test_facturas.py`: 1000 @21% ret 15% → apuntes exactos (600/472/400/4751), ΣDebe=ΣHaber
+- [X] T033 [P] [US4] Integration test `test_resumen_111_por_cif` en `backend/tests/integration/test_facturas.py`: 3 facturas mismo CIF → agregado por CIF es la Σ exacta
+- [X] T034 [P] [US4] Integration test `test_resumen_115_separa_alquileres` en `backend/tests/integration/test_facturas.py`: alquileres (115) no aparecen en 111 y sí en 115
+- [X] T035 [P] [US4] Integration test `test_perceptor_sin_cif_valido_excluido_y_pct_fuera_rango` en `backend/tests/integration/test_facturas.py`: CIF inválido → 422; `pct_retencion > 100` → 422
 
 ### Implementación para User Story 4
 
-- [ ] T036 [US4] Añadir en `crear_factura` (compra) el apunte de pasivo de retención: `base_retencion`/`pct_retencion`/`cuota_retencion` validados (cuota = base×pct/100 a 2dp, pct 0–100 → 422 si no), cuenta `4751` para 111 y cuenta configurable (default `4751`) para 115, en `backend/app/services/facturas.py`
-- [ ] T037 [US4] Implementar `resumen_retenciones(...)` en `backend/app/services/facturas.py`: agregado por `tercero_cif` (`base_retencion`, `cuota_retencion`, `numero_facturas`), excluye CIF inválidos (FR-017); endpoint `GET /api/v1/facturas/retenciones` (query `tipo` 111|115, `desde`, `hasta`) en `backend/app/api/facturas.py`
-- [ ] T038 [US4] Frontend: `frontend/src/components/ResumenRetenciones.tsx` + página `frontend/src/app/fiscal/retenciones/page.tsx` (selección 111/115, tabla por CIF)
+- [X] T036 [US4] Añadir en `crear_factura` (compra) el apunte de pasivo de retención: `base_retencion`/`pct_retencion`/`cuota_retencion` validados (cuota = base×pct/100 a 2dp, pct 0–100 → 422 si no), cuenta `4751` para 111 y cuenta configurable (default `4751`) para 115, en `backend/app/services/facturas.py`
+- [X] T037 [US4] Implementar `resumen_retenciones(...)` en `backend/app/services/facturas.py`: agregado por `tercero_cif` (`base_retencion`, `cuota_retencion`, `numero_facturas`), excluye CIF inválidos (FR-017); endpoint `GET /api/v1/facturas/retenciones` (query `tipo` 111|115, `desde`, `hasta`) en `backend/app/api/facturas.py`
+- [X] T038 [US4] Frontend: `frontend/src/components/ResumenRetenciones.tsx` + página `frontend/src/app/fiscal/retenciones/page.tsx` (selección 111/115, tabla por CIF)
 
 **Checkpoint**: US4 funcional sobre facturas de compra
 
@@ -165,15 +165,15 @@ description: "Task list for feature implementation"
 
 ### Tests para User Story 5 (obligatorios)
 
-- [ ] T039 [P] [US5] Integration test `test_is_base_y_cuota` en `backend/tests/integration/test_presentaciones_is.py`: 100000 ± 5000/8000 @25% retenciones 4000 → 97000/24250/20250
-- [ ] T040 [P] [US5] Integration test `test_is_a_devolver` en `backend/tests/integration/test_presentaciones_is.py`: retenciones > cuota íntegra → cuota diferencial negativa
-- [ ] T041 [P] [US5] Integration test `test_is_una_por_ejercicio_y_cerrada_inmutable` en `backend/tests/integration/test_presentaciones_is.py`: 2º POST → 409; tras cerrar, PUT → 409; ejercicio cerrado → 409
+- [X] T039 [P] [US5] Integration test `test_is_base_y_cuota` en `backend/tests/integration/test_presentaciones_is.py`: 100000 ± 5000/8000 @25% retenciones 4000 → 97000/24250/20250
+- [X] T040 [P] [US5] Integration test `test_is_a_devolver` en `backend/tests/integration/test_presentaciones_is.py`: retenciones > cuota íntegra → cuota diferencial negativa
+- [X] T041 [P] [US5] Integration test `test_is_una_por_ejercicio_y_cerrada_inmutable` en `backend/tests/integration/test_presentaciones_is.py`: 2º POST → 409; tras cerrar, PUT → 409; ejercicio cerrado → 409
 
 ### Implementación para User Story 5
 
-- [ ] T042 [US5] Implementar `services/is.py` en `backend/app/services/`: `calcular(liq)` (fórmula única del contrato is.md: `base = resultado + Σaumentos − Σdisminuciones`; `cuota_integra = base×tipo/100` cuantizado; `diferencial = cuota_integra − retenciones`), validar `ajustes_json` con `AjusteIS`
-- [ ] T043 [US5] Endpoints `GET/POST/PUT /api/v1/is` y `POST /api/v1/is/cerrar` en `backend/app/api/is.py` (cerrar solo si ejercicio abierto; congelar campos; registrar `cerrado_por_usuario_id`/`cerrado_at`), router en `backend/app/main.py`
-- [ ] T044 [US5] Frontend: `frontend/src/components/LiquidacionIS.tsx` (editor de ajustes aumento/disminución) + página `frontend/src/app/fiscal/is/page.tsx` (resumen calculado por el backend, botón cerrar)
+- [X] T042 [US5] Implementar `services/is.py` en `backend/app/services/`: `calcular(liq)` (fórmula única del contrato is.md: `base = resultado + Σaumentos − Σdisminuciones`; `cuota_integra = base×tipo/100` cuantizado; `diferencial = cuota_integra − retenciones`), validar `ajustes_json` con `AjusteIS`
+- [X] T043 [US5] Endpoints `GET/POST/PUT /api/v1/is` y `POST /api/v1/is/cerrar` en `backend/app/api/is.py` (cerrar solo si ejercicio abierto; congelar campos; registrar `cerrado_por_usuario_id`/`cerrado_at`), router en `backend/app/main.py`
+- [X] T044 [US5] Frontend: `frontend/src/components/LiquidacionIS.tsx` (editor de ajustes aumento/disminución) + página `frontend/src/app/fiscal/is/page.tsx` (resumen calculado por el backend, botón cerrar)
 
 **Checkpoint**: US5 funcional
 
@@ -189,19 +189,19 @@ description: "Task list for feature implementation"
 
 ### Tests para User Story Presentación AEAT (obligatorios)
 
-- [ ] T045 [P] [US-PRES] Integration test `test_fichero_303_posiciones_fijas` en `backend/tests/integration/test_presentaciones_is.py`: genera fichero de un trimestre cerrado y valida longitudes/alineación/totales contra la plantilla
-- [ ] T046 [P] [US-PRES] Integration test `test_fichero_111_115_por_cif` en `backend/tests/integration/test_presentaciones_is.py`: un registro por perceptor con retenciones correctas
-- [ ] T047 [P] [US-PRES] Integration test `test_fichero_200_is` en `backend/tests/integration/test_presentaciones_is.py`: casillas (resultado/base/cuota íntegra/diferencial) coinciden con la liquidación cerrada
-- [ ] T048 [P] [US-PRES] Integration test `test_fichero_solo_con_periodo_cerrado_409` en `backend/tests/integration/test_presentaciones_is.py`: borrador → 409; vista en pantalla sí disponible
-- [ ] T049 [P] [US-PRES] Integration test `test_directorio_impuestos_y_trazabilidad` en `backend/tests/integration/test_presentaciones_is.py`: ruta `impuestos/{empresa_id}/{anio}/{modelo}_{periodo}.txt`; regenerar sobrescribe (mismo nombre, nuevo hash) con `hash_sha256`/usuario/fecha en `fichero_presentacion`
+- [X] T045 [P] [US-PRES] Integration test `test_fichero_303_posiciones_fijas` en `backend/tests/integration/test_presentaciones_is.py`: genera fichero de un trimestre cerrado y valida longitudes/alineación/totales contra la plantilla
+- [X] T046 [P] [US-PRES] Integration test `test_fichero_111_115_por_cif` en `backend/tests/integration/test_presentaciones_is.py`: un registro por perceptor con retenciones correctas
+- [X] T047 [P] [US-PRES] Integration test `test_fichero_200_is` en `backend/tests/integration/test_presentaciones_is.py`: casillas (resultado/base/cuota íntegra/diferencial) coinciden con la liquidación cerrada
+- [X] T048 [P] [US-PRES] Integration test `test_fichero_solo_con_periodo_cerrado_409` en `backend/tests/integration/test_presentaciones_is.py`: borrador → 409; vista en pantalla sí disponible
+- [X] T049 [P] [US-PRES] Integration test `test_directorio_impuestos_y_trazabilidad` en `backend/tests/integration/test_presentaciones_is.py`: ruta `impuestos/{empresa_id}/{anio}/{modelo}_{periodo}.txt`; regenerar sobrescribe (mismo nombre, nuevo hash) con `hash_sha256`/usuario/fecha en `fichero_presentacion`
 
 ### Implementación para User Story Presentación AEAT
 
-- [ ] T050 [US-PRES] Extender `services/aeat.py`: plantillas concretas de posiciones fijas para 303 (agregados por tipo), 111/115 (registro por perceptor), 200 (casillas por bloques) con las longitudes de las especificaciones oficiales AEAT (rentrey versión vigente documentada en `research.md` R1); generador que emite cabecera (NIF/razón social/periodo), registros de totales y registro de fin; valida con `validar_formato` antes de escribir
-- [ ] T051 [US-PRES] Implementar `persistir_fichero(...)` en `backend/app/services/aeat.py`: mkdir `impuestos/{empresa_id}/{anio}`, escritura idempotente (sobrescribe mismo `{modelo}_{periodo}.txt`), `hash_sha256`, upsert en `fichero_presentacion`
-- [ ] T052 [US-PRES] Endpoints en `backend/app/api/presentaciones.py`: `GET /api/v1/presentaciones/{modelo}?periodo=` (vista resumen+casillas, calculada en backend) y `GET /api/v1/presentaciones/{modelo}/fichero?periodo=` (409 si no cerrado; devuelve fichero persistido o regenera+guarda+descarga en la petición); router en `backend/app/main.py`
-- [ ] T053 [US-PRES] Frontend: `frontend/src/components/PresentacionAEAT.tsx` (resumen por bloques + detalle por casillas desplegable + botón de descarga) y página `frontend/src/app/presentaciones/page.tsx`; botón **deshabilitado** cuando `bloque_descarga.habilitado=false` mostrando `motivo`
-- [ ] T054 [US-PRES] Añadir `api.presentaciones.*` en `frontend/src/lib/api.ts` (vista + descarga; el descarga usa blob de `text/plain`)
+- [X] T050 [US-PRES] Extender `services/aeat.py`: plantillas concretas de posiciones fijas para 303 (agregados por tipo), 111/115 (registro por perceptor), 200 (casillas por bloques) con las longitudes de las especificaciones oficiales AEAT (rentrey versión vigente documentada en `research.md` R1); generador que emite cabecera (NIF/razón social/periodo), registros de totales y registro de fin; valida con `validar_formato` antes de escribir
+- [X] T051 [US-PRES] Implementar `persistir_fichero(...)` en `backend/app/services/aeat.py`: mkdir `impuestos/{empresa_id}/{anio}`, escritura idempotente (sobrescribe mismo `{modelo}_{periodo}.txt`), `hash_sha256`, upsert en `fichero_presentacion`
+- [X] T052 [US-PRES] Endpoints en `backend/app/api/presentaciones.py`: `GET /api/v1/presentaciones/{modelo}?periodo=` (vista resumen+casillas, calculada en backend) y `GET /api/v1/presentaciones/{modelo}/fichero?periodo=` (409 si no cerrado; devuelve fichero persistido o regenera+guarda+descarga en la petición); router en `backend/app/main.py`
+- [X] T053 [US-PRES] Frontend: `frontend/src/components/PresentacionAEAT.tsx` (resumen por bloques + detalle por casillas desplegable + botón de descarga) y página `frontend/src/app/presentaciones/page.tsx`; botón **deshabilitado** cuando `bloque_descarga.habilitado=false` mostrando `motivo`
+- [X] T054 [US-PRES] Añadir `api.presentaciones.*` en `frontend/src/lib/api.ts` (vista + descarga; el descarga usa blob de `text/plain`)
 
 **Checkpoint**: todas las user stories y la presentación AEAT funcionales de forma independiente
 
@@ -211,12 +211,12 @@ description: "Task list for feature implementation"
 
 **Purpose**: Mejoras transversales y cierre de validaciones
 
-- [ ] T055 [P] Verificar `.gitignore` cubre `backend/impuestos/` y que ningún env/secreto se registra (auditoría `git status`)
-- [ ] T056 [P] Frontend: test smoke en `frontend/tests/fiscales.test.tsx` (formulario factura renderiza y valida CIF/duplicado; página presentaciones renderiza botón deshabilitado en borrador) — `npx vitest run`
-- [ ] T057 Manejo unificado de errores 409/422/400/403 en frontend (`frontend/src/lib/api.ts`) con mensajes comprensibles (patrón Defectos: duplicado, ejercicio cerrado, periodo sin cerrar)
-- [ ] T058 Documentar en `specs/001-modulo-core-contable/tasks.md`: actualizar relación de módulos disponibles (Facturas, Libros IVA, Retenciones, IS, Presentaciones)
-- [ ] T059 Ejecutar `quickstart.md` extremo a extremo (4 escenarios) y corregir desviaciones detectadas
-- [ ] T060 Verificación final en orden: backend `..\.venv\Scripts\python.exe -m ruff check app tests` → `pytest -q`; frontend `npm run lint` → `npx tsc --noEmit` → `npm run build`
+- [X] T055 [P] Verificar `.gitignore` cubre `backend/impuestos/` y que ningún env/secreto se registra (auditoría `git status`)
+- [X] T056 [P] Frontend: test smoke en `frontend/tests/fiscales.test.tsx` (formulario factura renderiza y valida CIF/duplicado; página presentaciones renderiza botón deshabilitado en borrador) — `npx vitest run`
+- [X] T057 Manejo unificado de errores 409/422/400/403 en frontend (`frontend/src/lib/api.ts`) con mensajes comprensibles (patrón Defectos: duplicado, ejercicio cerrado, periodo sin cerrar)
+- [X] T058 Documentar en `specs/001-modulo-core-contable/tasks.md`: actualizar relación de módulos disponibles (Facturas, Libros IVA, Retenciones, IS, Presentaciones)
+- [X] T059 Ejecutar `quickstart.md` extremo a extremo (4 escenarios) y corregir desviaciones detectadas
+- [X] T060 Verificación final en orden: backend `..\.venv\Scripts\python.exe -m ruff check app tests` → `pytest -q`; frontend `npm run lint` → `npx tsc --noEmit` → `npm run build`
 
 ---
 

@@ -14,7 +14,10 @@ from app.api.banco import banco_router
 from app.api.cuentas import router as cuentas_router
 from app.api.empresas import router as empresas_router
 from app.api.errors import register_error_handlers
+from app.api.facturas import router as facturas_router
+from app.api.impuesto_sociedades import is_router
 from app.api.informes import informes_router
+from app.api.presentaciones import presentaciones_router
 from app.config import get_settings
 from app.db import sqlite_pragmas_state
 from app.rate_limit import limiter
@@ -51,6 +54,9 @@ app.include_router(auth_router, prefix="/api/v1")
 app.include_router(empresas_router)
 app.include_router(informes_router, prefix="/api/v1")
 app.include_router(banco_router, prefix="/api/v1")
+app.include_router(facturas_router, prefix="/api/v1")
+app.include_router(is_router, prefix="/api/v1")
+app.include_router(presentaciones_router, prefix="/api/v1")
 
 
 @app.get("/api/v1/health", tags=["system"])

@@ -29,6 +29,10 @@ coverage/
 # Datos de ejemplo / extractos bancarios
 Data/
 
+# Ficheros AEAT de presentación (spec 005): impuestos/{empresa_id}/{anio}/
+backend/impuestos/*
+!backend/impuestos/.gitkeep
+
 # Tools
 .vscode/
 .idea/

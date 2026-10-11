@@ -247,3 +247,19 @@ Task: "Registrar router en backend/app/main.py (depende de T019)"
 - Evitar: tareas vagas, conflictos de mismo archivo, dependencias cruzadas que rompan la independencia
 - Suites automáticas en `quickstart.md` Â§Automatización como puerta de salida (R2)
 
+---
+
+## Módulos disponibles (posteriores a la Fase 1)
+
+Además del núcleo contable de esta spec, el repositorio implementa los
+siguientes módulos, cada uno con su propia spec/plan/tasks en `specs/`:
+
+- **002-security-code-hardening** — endurecimiento de seguridad y código.
+- **003-libro-mayor-balance** — Libro Mayor, listado global y Balance de Sumas y Saldos.
+- **004-conciliacion-bancaria** — importación de extractos, reglas de auto-matching y procesamiento.
+- **005-modulos-fiscales** — facturas con IVA/Recargo de Equivalencia/retenciones,
+  Libros Registro de IVA, Retenciones IRPF (111/115), Liquidación del Impuesto
+  sobre Sociedades y Presentación AEAT (303/111/115/200 + fichero de posiciones
+  fijas).
+
+Todos ellos son accesibles desde el panel del frontend (`frontend/src/app/`).

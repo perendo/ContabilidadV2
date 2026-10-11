@@ -1,6 +1,6 @@
 # ContabilidadV2
 
-Núcleo contable multi-tenant (Fase 1): registro de **Plan General Contable (PGC) de España** y **asientos diarios** con partida doble, flujo borrador → asentado y Diario, sobre una API FastAPI y un cliente Next.js. Sobre esa base se añaden informes (**Libro Mayor** por cuenta y **listado global**, y **Balance de Sumas y Saldos**), **conciliación bancaria** con auto-matching y el diseño de los **módulos fiscales** (Libros Registro de IVA, retenciones IRPF e Impuesto sobre Sociedades).
+Núcleo contable multi-tenant (Fase 1): registro de **Plan General Contable (PGC) de España** y **asientos diarios** con partida doble, flujo borrador → asentado y Diario, sobre una API FastAPI y un cliente Next.js. Sobre esa base se añaden informes (**Libro Mayor** por cuenta y **listado global**, y **Balance de Sumas y Saldos**), **conciliación bancaria** con auto-matching y los **módulos fiscales** (facturas con IVA/retenciones, Libros Registro de IVA, retenciones IRPF, Liquidación del Impuesto sobre Sociedades y presentación de ficheros AEAT).
 
 La lógica contable (validaciones, cuadre, correlativos, cierres de periodo y aislamiento entre empresas) reside **exclusivamente en el backend**. El frontend calcula la diferencia Δ en tiempo real solo como ayuda de entrada; la autoridad del cuadre es el servidor. Reglas vinculantes en [`.specify/memory/constitution.md`](.specify/memory/constitution.md).
 
@@ -18,7 +18,7 @@ La lógica contable (validaciones, cuadre, correlativos, cierres de periodo y ai
 - **Frontend MD3**: tema claro/oscuro (MUI v6), selector global de Empresa/Ejercicio, formulario de asientos con Δ en tiempo real, Diario paginado/expandible con pestaña de borradores, y páginas de **Mayor** y **Balance** con export a CSV/PDF.
 - **Informes** (spec 003): **Libro Mayor** por cuenta (saldo inicial, movimientos y saldo final, con filtro de fechas) y **listado global** de cuentas, más el **Balance de Sumas y Saldos**. La exportación CSV/PDF se genera en el servidor; el cálculo vive solo en el backend.
 - **Conciliación bancaria** (spec 004): importación de extractos (**Excel Santander, CSV estándar, CSB/Cuaderno 43**, con detección de formato y de duplicados), **reglas de auto-matching** (regex sobre el concepto + importe fijo/porcentaje) que generan asientos **reutilizando el servicio contable** (borrador o asentado con correlativo y ΣDebe = ΣHaber), y cola de **movimientos pendientes**. Cada procesamiento queda trazado en `log_procesamiento_banco`.
-- **Módulos fiscales** (spec 005, *en diseño*): Libros Registro de IVA, retenciones IRPF e Impuesto sobre Sociedades, con generación de ficheros AEAT de posiciones fijas (303/111/115/200) solo con periodos cerrados y sin presentación telemática.
+- **Módulos fiscales** (spec 005): **facturas** de venta/compra con IVA, Recargo de Equivalencia y retenciones IRPF que generan su **asiento automático** (reutilizando el servicio contable: correlativo y ΣDebe = ΣHaber), **Libros Registro de IVA** (repercutido/soportado, con export CSV), **resumen de retenciones** (111/115) por perceptor, **Liquidación del Impuesto sobre Sociedades** (borrador que recalcula → cierre que congela e inmuta) y **vista de presentación AEAT** con descarga del fichero de posiciones fijas (303/111/115/200) solo con el periodo/liquidación cerrados. Sin presentación telemática.
 
 ## Stack
 
@@ -124,6 +124,18 @@ Base path `/api/v1`. Cuerpos JSON; fechas `YYYY-MM-DD`; importes como cadena dec
 | POST | `/banco/reglas/{id}/simular` | Simular el match de una regla sin asentar |
 | POST | `/banco/procesar` | Generar asientos de los pendientes aplicando reglas |
 | GET | `/banco/logs` | Trazabilidad de los procesamientos |
+| POST | `/facturas` | Alta de factura (venta/compra) + **asiento automático** |
+| GET | `/facturas` | Listado de facturas (paginado/filtrable) |
+| GET | `/facturas/{id}` | Detalle de una factura con sus líneas |
+| GET | `/facturas/libros/iva` | Libro Registro de IVA (repercutido/soportado) por rango |
+| GET | `/facturas/libros/iva/exportar` | Export **CSV** del Libro de IVA |
+| GET | `/facturas/retenciones` | Resumen de retenciones IRPF por perceptor (111/115) |
+| GET | `/is` | Liquidación del Impuesto sobre Sociedades (404 si no existe) |
+| POST | `/is` | Crear la liquidación del ejercicio (201) |
+| PUT | `/is` | Actualizar la liquidación (**solo en `borrador`**; `409` si cerrada) |
+| POST | `/is/cerrar` | Cerrar la liquidación (congela importes; inmutable) |
+| GET | `/presentaciones/{modelo}` | Vista en pantalla de la presentación AEAT (`periodo=` obligatorio) |
+| GET | `/presentaciones/{modelo}/fichero` | Descarga del fichero de posiciones fijas (`409` si no está cerrado) |
 | GET | `/health` | Liveness del servicio (`{"status":"ok"}`) |
 
 Códigos: `400` contexto/firma inválida · `401` no autenticado · `403` sin acceso · `404` inexistente · `409` conflicto de estado/unicidad · `422` validación/descuadre.
@@ -144,6 +156,16 @@ Flujo completo de la spec 004, todo desde `Conciliación Bancaria` en el dashboa
 
 Los movimientos importados no modifican cuentas hasta que una regla (o un usuario) genera el asiento; el `importar` es solo de lectura sobre el ejercicio (funciona con ejercicio cerrado).
 
+## Módulos fiscales (guide)
+
+Flujo completo de la spec 005, desde el dashboard (`/facturas`, `/fiscal/*`, `/presentaciones`):
+
+1. **Facturas** (`/facturas` → `/facturas/nueva`): registra facturas de **venta** y **compra** con líneas de IVA (tipo y cuota por línea; soporta **Recargo de Equivalencia**) y, en compras, **retención IRPF** (111/115). La validación de CIF/NIF es real (no basta el formato). Guardar una factura crea su **asiento** de forma atómica reutilizando el servicio contable (correlativo y ΣDebe = ΣHaber): ventas → 430 / 700 / 477; compras → 600 / 472 / 400 / 4751. Factura duplicada (mismo ejercicio + CIF + número) → `409`.
+2. **Libros Registro de IVA** (`/fiscal/libros-iva`): libro **repercutido** (ventas) y **soportado** (compras) por rango de fechas, con totales por tipo y export **CSV**.
+3. **Retenciones IRPF** (`/fiscal/retenciones`): resumen por perceptor para el modelo **111** o **115** (base y retención acumuladas) en un rango de fechas.
+4. **Liquidación del IS** (`/fiscal/is`): introduce resultado contable, ajustes (aumento/disminución), tipo de gravamen y retenciones/pagos a cuenta. En **borrador** los importes (base imponible, cuota íntegra, cuota diferencial) se **recalculan al consultar** y se pueden **editar**; **cerrar** los congela y deja la liquidación **inmutable** (`PUT` o segundo cierre → `409`).
+5. **Presentación AEAT** (`/presentaciones`): elige modelo (**303/111/115**) y periodo, o **200**. La **vista en pantalla** está siempre disponible; la **descarga** del fichero de posiciones fijas solo se habilita con el **ejercicio cerrado** (303/111/115) o la **liquidación del IS cerrada** (200) y, si no, devuelve `409`. El fichero se persiste en `backend/impuestos/{empresa_id}/{anio}/{modelo}_{periodo}.txt` (gitignored) con trazabilidad SHA-256/usuario/fecha en `fichero_presentacion`; regenerar sobrescribe y refresca la trazabilidad.
+
 ## Tests
 
 ```powershell
@@ -159,16 +181,18 @@ npm test
 
 `backend/tests/conftest.py` crea una BD temporal migrada con `alembic upgrade head`; por eso los tests deben ejecutarse desde `backend/`. Verificación completa de release: `ruff` → `pytest` → `lint` → `tsc --noEmit` → `build`.
 
+`backend/tests/integration/test_quickstart_fiscales.py` recorre de extremo a extremo los 4 escenarios de [`specs/005-modulos-fiscales/quickstart.md`](specs/005-modulos-fiscales/quickstart.md) (factura de venta + asiento, compra con retención + libros, liquidación del IS + vista 200 y cierre + descarga/regeneración del fichero AEAT).
+
 ## Estructura
 
 ```text
 ContabilidadV2/
 ├── backend/
 │   ├── app/
-│   │   ├── api/         # routers: auth, empresas, cuentas, asientos, informes, banco, deps, errors
-│   │   ├── models/      # SQLModel: identidad, contable y banco
-│   │   ├── schemas/     # Pydantic: identidad, contable, informes y banco
-│   │   ├── services/    # lógica: cuadre, correlativo, identidad, seguridad, informes, banco
+│   │   ├── api/         # routers: auth, empresas, cuentas, asientos, informes, banco, facturas, is, presentaciones, deps, errors
+│   │   ├── models/      # SQLModel: identidad, contable, banco y fiscal
+│   │   ├── schemas/     # Pydantic: identidad, contable, informes, banco y fiscal
+│   │   ├── services/    # lógica: cuadre, correlativo, identidad, seguridad, informes, banco, facturas, aeat, impuesto_sociedades, presentaciones
 │   │   ├── pgc.py       # PGC base curado (niveles 1-3) + siembra por ejercicio
 │   │   ├── config.py    # settings (pydantic-settings)
 │   │   ├── db.py        # motor SQLite + pragmas WAL
@@ -176,13 +200,13 @@ ContabilidadV2/
 │   │   ├── rate_limit.py # Limiter de slowapi (evita import circular con api/auth)
 │   │   └── seed.py      # usuarios de desarrollo + backfill del PGC base
 │   ├── alembic/         # migraciones (único camino de evolución del esquema)
-│   ├── tests/           # unit/ e integration/ (incluye informes y banco)
-│   ├── impuestos/       # ficheros AEAT (spec 005, planificado; gitignored)
+│   ├── tests/           # unit/ e integration/ (incluye informes, banco y fiscales)
+│   ├── impuestos/       # ficheros AEAT generados: {empresa_id}/{anio}/{modelo}_{periodo}.txt (gitignored)
 │   └── pyproject.toml
 ├── frontend/
 │   ├── src/
-│   │   ├── app/         # App Router: login, seleccion, asientos, diario, cuentas, mayor, balance
-│   │   ├── components/  # ContextSelector, FormAsiento, Diario, PlanCuentas, Mayor, Balance
+│   │   ├── app/         # App Router: login, seleccion, asientos, diario, cuentas, mayor, balance, banco, facturas, fiscal, presentaciones
+│   │   ├── components/  # ContextSelector, FormAsiento, Diario, PlanCuentas, Mayor, Balance, FormFactura, LibroIVA, LiquidacionIS, PresentacionAEAT, ResumenRetenciones
 │   │   └── lib/         # api.ts (cliente + contexto), theme.ts, useCargar.ts
 │   ├── tests/           # vitest
 │   └── package.json
@@ -203,4 +227,4 @@ ContabilidadV2/
 - **Fase 1 (completada)**: PGC base + subcuentas, asientos diarios (borrador → asentado), Diario y contexto multi-tenant.
 - **Fase 1.1 (completada)**: informe de **Libro Mayor** y **listado global** + **Balance de Sumas y Saldos** con export CSV/PDF (spec 003).
 - **Fase 1.2 (completada)**: **conciliación bancaria** con importación de extractos y reglas de auto-matching (spec 004).
-- **Fase 1.3 (diseño)**: **módulos fiscales** — Libros Registro de IVA, retenciones IRPF e Impuesto sobre Sociedades, con ficheros AEAT (spec 005).
+- **Fase 1.3 (completada)**: **módulos fiscales** — facturas con IVA/retenciones, Libros Registro de IVA, retenciones IRPF (111/115), Liquidación del Impuesto sobre Sociedades y presentación AEAT (303/111/115/200) con ficheros de posiciones fijas (spec 005).

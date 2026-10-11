@@ -10,6 +10,11 @@ const accesos = [
   { href: "/mayor", titulo: "Libro Mayor", descripcion: "Consulta el Mayor por cuenta y el listado global." },
   { href: "/balance", titulo: "Balance de Sumas y Saldos", descripcion: "Genera el Balance con agregación jerárquica y cuatro columnas." },
   { href: "/banco", titulo: "Conciliación Bancaria", descripcion: "Importa extractos, define reglas de auto-matching y procesa los pendientes." },
+  { href: "/facturas", titulo: "Facturas", descripcion: "Registra facturas de venta y compra con IVA, RE y retenciones; genera el asiento." },
+  { href: "/fiscal/libros-iva", titulo: "Libros Registro de IVA", descripcion: "Consulta y exporta el Libro Repercutido y Soportado por tipo." },
+  { href: "/fiscal/retenciones", titulo: "Retenciones IRPF", descripcion: "Resumen por perceptor de los modelos 111 y 115." },
+  { href: "/fiscal/is", titulo: "Impuesto sobre Sociedades", descripcion: "Liquidación del IS con ajustes, tipo y cierre inmutable." },
+  { href: "/presentaciones", titulo: "Presentación AEAT", descripcion: "Vista y descarga de los ficheros 303/111/115/200 de posiciones fijas." },
 ];
 
 export default function DashboardPage() {
