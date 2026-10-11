@@ -1,18 +1,18 @@
-# Normalización de finales de línea (evita diffs fantasma Windows/macOS/Linux).
+# Normalización de finales de línea (unifica Windows/macOS/Linux y evita los
+# avisos "LF will be replaced by CRLF" y los diffs fantasma de archivo completo).
 #
-# En el repositorio los ficheros de texto se guardan SIEMPRE con LF; Git decide
-# el EOL del working tree según la plataforma (o `core.autocrlf`). Así un mismo
-# fichero no aparece como "modificado entero" al cambiar de sistema operativo o
-# de configuración, y todos los colaboradores commitean lo mismo.
+# Criterio: el repositorio guarda TODO el texto con LF y el working tree también
+# usa LF en cualquier sistema; la excepción son los scripts de Windows (.bat,
+# .cmd, .ps1) que se mantienen en CRLF por compatibilidad con cmd.exe.
 
-# Autodetección de texto: normaliza a LF en el repositorio.
-* text=auto
+* text=auto eol=lf
 
-# Scripts de Windows: CRLF en el checkout (compatibilidad con cmd.exe).
+# Scripts de Windows: CRLF en el checkout.
 *.bat text eol=crlf
 *.cmd text eol=crlf
+*.ps1 text eol=crlf
 
-# Scripts de shell / portables: LF siempre.
+# Scripts de shell / portables: LF siempre (explícito por claridad).
 *.sh text eol=lf
 
 # Binarios: Git nunca debe normalizarlos.
