@@ -327,6 +327,10 @@ def procesar_pendientes(
 
         try:
             importe_calc = _calcular_importe(regla, mov)
+            if importe_calc == 0:
+                # Importe cero: no genera asiento, queda pendiente (T045)
+                pendientes += 1
+                continue
             cuenta_debe_obj, cuenta_haber_obj = validar_cuentas_regla(
                 session, mov.ejercicio_id, regla.cuenta_debe, regla.cuenta_haber
             )
@@ -343,13 +347,14 @@ def procesar_pendientes(
                 ],
                 usuario_id=usuario.id,
                 origen="auto",
+                commit=False,
             )
             if regla.auto_asentar:
                 svc_asientos.asentar(session, asiento, usuario_id=usuario.id)
 
             # Trazabilidad US5 (T037): marca la regla que generó el asiento.
+            # Sin commit intermedio: todo el batch persiste en el commit final (AC-02).
             asiento.regla_id = regla.id
-            session.commit()
 
             mov.procesado = True
             mov.asiento_id = asiento.id

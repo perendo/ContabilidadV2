@@ -1,8 +1,9 @@
+import re
 from datetime import date, datetime
 from decimal import Decimal
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class MovimientoBancoIn(BaseModel):
@@ -54,6 +55,16 @@ class ReglaBancoIn(BaseModel):
     prioridad: int = Field(default=0, ge=0)
     auto_asentar: bool = False
     activa: bool = True
+
+    @field_validator("patron_regex")
+    @classmethod
+    def _validar_regex(cls, v: str) -> str:
+        """Rechaza patrones regex inválidos en creación/edición (422)."""
+        try:
+            re.compile(v)
+        except re.error as exc:
+            raise ValueError(f"Patrón regex inválido: {exc}") from None
+        return v
 
 
 class ReglaBancoOut(BaseModel):

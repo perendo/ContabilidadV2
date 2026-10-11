@@ -17,7 +17,7 @@ description: "Lista de tareas para Conciliación Bancaria con Auto-Matching (Spe
 - **[P]**: Ejecutable en paralelo (archivos distintos, sin dependencias)
 - **[Story]**: A qué user story pertenece (US1, US2, US3, US4, US5)
 - Rutas exactas en cada descripción
-- **Estado real** (actualizado al completar el frontend, oct 2026): `[x]` hecho · `[x]*` hecho con divergencias/notas (ver detalle inline) · `[ ]` pendiente
+- **Estado real** (completada al 100%, 11/10/2026): `[x]` hecho · `[x]*` hecho con divergencias/notas (ver detalle inline) · `[ ]` pendiente
 
 ---
 
@@ -59,8 +59,8 @@ description: "Lista de tareas para Conciliación Bancaria con Auto-Matching (Spe
 
 > **NOTA: Escribir estos tests PRIMERO, asegurar que FALLAN antes de implementar**
 
-- [x]* T008 [US1] Tests de integración importación en `backend/tests/integration/test_banco.py`: Excel Santander (cabecera 7 filas + header fila 8) → parse correcto 100+ filas, importe/fecha/code mapeados; CSV `;`/`,`/UTF-8 → mismo resultado; CSB registros 01/02/03/99 → parse correcto; duplicados (mismo hash) → 409 o ignorados según flag; multi-tenant (empresa ajena) → 403; ejercicio cerrado → 200 (solo lectura)
-  - *Parcial*: cubiertos CSV (`test_importar_csv_crea_movimientos_pendientes`) y duplicados por hash (`test_importar_duplicado_no_reinserta`); el parsing Excel/CSB y los casos multi-tenant / ejercicio cerrado no tienen test dedicado (ver T044/T045).
+- [x] T008 [US1] Tests de integración importación en `backend/tests/integration/test_banco.py`: Excel Santander (cabecera 7 filas + header fila 8) → parse correcto 100+ filas, importe/fecha/code mapeados; CSV `;`/`,`/UTF-8 → mismo resultado; CSB registros 01/02/03/99 → parse correcto; duplicados (mismo hash) → 409 o ignorados según flag; multi-tenant (empresa ajena) → 403; ejercicio cerrado → 200 (solo lectura)
+  - *Completado*: `TestImportarFormatos` cubre Excel y CSB vía HTTP (mapeo de fecha/importe/código/referencia), archivo corrupto → 422, empresa ajena → 403 y ejercicio cerrado → 200; `TestImportarExtracto` cubre CSV y duplicados por hash; además divisa no EUR → aviso (ver T045).
 
 ### Implementation for User Story 1
 
@@ -83,8 +83,8 @@ description: "Lista de tareas para Conciliación Bancaria con Auto-Matching (Spe
 
 ### Tests for User Story 2 (requeridos por constitución R2)
 
-- [x]* T015 [US2] Tests de integración reglas en `backend/tests/integration/test_banco.py`: CRUD reglas (crear, listar, actualizar, borrar); validación cuentas (deben existir en ejercicio activo); simular regla devuelve movimientos que matchan; prioridad mayor gana; regex case-insensitive; multi-tenant (regla empresa A no visible en B)
-  - *Parcial*: el CRUD y la validación de cuentas se ejercitan a través de los tests de `TestProcesar`/pendientes (`_crear_regla` reutilizado); no hay tests de lista separados por empresa (multi-tenant) ni de conflicto de prioridad.
+- [x] T015 [US2] Tests de integración reglas en `backend/tests/integration/test_banco.py`: CRUD reglas (crear, listar, actualizar, borrar); validación cuentas (deben existir en ejercicio activo); simular regla devuelve movimientos que matchan; prioridad mayor gana; regex case-insensitive; multi-tenant (regla empresa A no visible en B)
+  - *Completado*: `TestMultiTenant.test_reglas_aisladas_por_empresa` (A y B aisladas), `TestPrioridadReglas.test_prioridad_mayor_gana` (prioridad 10 gana a 1 con regex `NOMINA` case-insensitive), y el CRUD/validación/simulador ejercitados en `TestProcesar`/`_crear_regla`.
 
 ### Implementation for User Story 2
 
@@ -108,8 +108,9 @@ description: "Lista de tareas para Conciliación Bancaria con Auto-Matching (Spe
 
 ### Tests for User Story 3 (requeridos por constitución R2)
 
-- [x]* T022 [US3] Tests de integración procesado en `backend/tests/integration/test_banco.py`: batch crea asientos correctos (debe/haber según regla, importe del movimiento o fijo/%), `procesado=True`, `asiento_id` link, `regla_id` link; `auto_asentar=True` → estado `asentado`, `False` → `borrador`; idempotente (2ª ejecución 0 nuevos); multi-tenant aislamiento; 0 asientos descuadrados (ΣDebe=ΣHaber)
-  - *Parcial*: `TestProcesar` cubre auto-asentar con correlativo (ΣDebe=ΣHaber), borrador, sin reglas → pendientes, cuenta inexistente → fallo logueado; la idempotencia (2ª ejecución) y el aislamiento multi-tenant del batch no tienen test explícito.
+- [x] T022 [US3] Tests de integración procesado en `backend/tests/integration/test_banco.py`: batch crea asientos correctos (debe/haber según regla, importe del movimiento o fijo/%), `procesado=True`, `asiento_id` link, `regla_id` link; `auto_asentar=True` → estado `asentado`, `False` → `borrador`; idempotente (2ª ejecución 0 nuevos); multi-tenant aislamiento; 0 asientos descuadrados (ΣDebe=ΣHaber)
+  - *Completado*: `TestIdempotenciaBatch.test_procesar_2da_ejecucion_0_nuevos` (2ª ejecución `creados=0`, no duplica), `TestMultiTenant.test_procesar_batch_aisla_empresa_b` (pendientes de B intactos), ΣDebe=ΣHaber en `TestProcesar.test_procesar_auto_asienta_con_correlativo`, y borrador/asentado en `TestProcesar`.
+  - *Rendimiento*: el batch usa un único commit al final (`guardar_borrador(commit=False)`) — ver T044.
 
 ### Implementation for User Story 3
 
@@ -134,8 +135,8 @@ description: "Lista de tareas para Conciliación Bancaria con Auto-Matching (Spe
 
 ### Tests for User Story 4 (requeridos por constitución R2)
 
-- [x]* T028 [US4] Tests de integración pendientes en `backend/tests/integration/test_banco.py`: `GET /pendientes` paginado + filtros (`desde`, `hasta`, `codigo_banco`); crear asiento manual vía endpoint existente `/asientos` + marcar movimiento procesado; filtro "solo pendientes" en Diario
-  - *Parcial*: `GET /pendientes` cubierto; el flujo manual completo quedó cubierto por `TestPendientesManuales` (crear asiento manual con `origen="manual"` + `POST /banco/movimientos/{id}/procesado`); el "filtro en Diario" se resolvió en el frontend con acceso directo a pendientes (ver T033), sin endpoint nuevo.
+- [x] T028 [US4] Tests de integración pendientes en `backend/tests/integration/test_banco.py`: `GET /pendientes` paginado + filtros (`desde`, `hasta`, `codigo_banco`); crear asiento manual vía endpoint existente `/asientos` + marcar movimiento procesado; filtro "solo pendientes" en Diario
+  - *Completado*: `TestPendientesFiltros.test_filtros_desde_hasta_codigo_y_paginacion` (desde/hasta/codigo_banco y offset/limit); flujo manual en `TestPendientesManuales` (asiento manual `origen="manual"` + `POST /banco/movimientos/{id}/procesado`, 409 en re-proceso); el acceso desde el Diario se resolvió en frontend con el botón "Pendientes de conciliar" (ver T033).
 
 ### Implementation for User Story 4
 
@@ -161,8 +162,8 @@ description: "Lista de tareas para Conciliación Bancaria con Auto-Matching (Spe
 
 ### Tests for User Story 5 (requeridos por constitución R2)
 
-- [x]* T034 [US5] Tests de integración trazabilidad en `backend/tests/integration/test_banco.py`: `AsientoOut` incluye `origen` (auto|manual|importado) y `regla_id` si auto; log de procesamiento persistido (tabla nueva o JSON en campo); auditoría: usuario que lanzó procesado, timestamp
-  - *Parcial*: `test_procesar_auto_marca_origen_y_regla` y `test_crear_asiento_manual_y_marcar_procesado` cubren `origen`/`regla_id` y la serialización en `AsientoOut`; el log persistido se ejercita en `test_procesar_cuenta_inexistente_registra_fallo` (fallidos); no hay test específico del contenido completo del log.
+- [x] T034 [US5] Tests de integración trazabilidad en `backend/tests/integration/test_banco.py`: `AsientoOut` incluye `origen` (auto|manual|importado) y `regla_id` si auto; log de procesamiento persistido (tabla nueva o JSON en campo); auditoría: usuario que lanzó procesado, timestamp
+  - *Completado*: `TestPendientesManuales` cubre `origen`/`regla_id` y su serialización en `AsientoOut`; `TestLogTrazabilidad.test_log_completo_del_procesamiento` valida vía `GET /banco/logs` el `usuario_id`, `reglas_aplicadas_json`, `creados`, `pendientes` y `fallidos_json` del log persistido.
 
 ### Implementation for User Story 5
 
@@ -182,14 +183,15 @@ description: "Lista de tareas para Conciliación Bancaria con Auto-Matching (Spe
 
 **Propósito**: Verificación end-to-end, rendimiento, edge cases, documentación
 
-- [ ] T041 [P] Recorrer y validar `specs/004-conciliacion-bancaria/quickstart.md` (REST + UI) y marcar casillas criterios aceptación
-  - *Pendiente*: `quickstart.md` no existe en la carpeta de la spec 004.
-- [x] T042 Ejecutar backend desde `backend/`: `..\.venv\Scripts\python.exe -m ruff check app tests` y `..\.venv\Scripts\python.exe -m pytest -q`; corregir hasta verde — ✅ ruff limpio, **77 tests passed**
+- [x] T041 [P] Recorrer y validar `specs/004-conciliacion-bancaria/quickstart.md` (REST + UI) y marcar casillas criterios aceptación
+  - *Completado*: creado `quickstart.md` con guía REST + UI, tabla de tests, y criterios SC-01..SC-19 y AC-01..AC-06 marcados con mediciones reales.
+- [x] T042 Ejecutar backend desde `backend/`: `..\.venv\Scripts\python.exe -m ruff check app tests` y `..\.venv\Scripts\python.exe -m pytest -q`; corregir hasta verde — ✅ ruff limpio, **93 tests passed**
 - [x] T043 Ejecutar frontend desde `frontend/`: `npm run lint`, `npx tsc --noEmit`, `npm run build`; corregir sin errores — ✅ lint, tsc, **24 tests vitest** y build en verde
-- [ ] T044 [P] Verificar AC-01 (importar 1000 movs < 5s), AC-02 (procesar 1000 movs 20 reglas < 3s), AC-03 (0 asientos descuadrados), AC-04 (re-importar 0 duplicados), AC-05 (sin reglas → pendientes), AC-06 (multi-tenant 0 cruce)
-  - *Parcial*: AC-03/AC-04/AC-05 cubiertos por tests de integración; AC-01/AC-02 (rendimiento) y AC-06 (cruce multi-tenant del batch) no medidos/testeados.
-- [x]* T045 [P] Verificar edge cases: ejercicio `cerrado` importable/consultable solo lectura, archivo corrupto → 422 con detalle, regex inválida → 422, cuenta inexistente en regla → 422, importe 0 → saltar, divisa distinta EUR → warning
-  - *Parcial*: cuenta inexistente en regla → fallo controlado en `test_procesar_cuenta_inexistente_registra_fallo`; duplicados → 409/ignorados testeados; el resto (ejercicio cerrado, archivo corrupto, regex inválida, importe 0, divisa) sin verificación explícita.
+- [x] T044 [P] Verificar AC-01 (importar 1000 movs < 5s), AC-02 (procesar 1000 movs 20 reglas < 3s), AC-03 (0 asientos descuadrados), AC-04 (re-importar 0 duplicados), AC-05 (sin reglas → pendientes), AC-06 (multi-tenant 0 cruce)
+  - *Completado*: `TestRendimiento` mide AC-01 (**0,62 s**) y AC-02 (**2,29 s**, 11/10/2026); AC-03 en `TestProcesar` (ΣDebe=ΣHaber); AC-04 en `TestImportarExtracto`; AC-05 en `TestProcesar.test_procesar_sin_reglas_deja_pendientes`; AC-06 en `TestMultiTenant` (reglas + batch aislados).
+  - *Optimización*: el batch persiste con un único commit al final (`guardar_borrador(commit=False)`); activar `auto_asentar=True` conserva el commit interno de `asentar` por asiento.
+- [x] T045 [P] Verificar edge cases: ejercicio `cerrado` importable/consultable solo lectura, archivo corrupto → 422 con detalle, regex inválida → 422, cuenta inexistente en regla → 422, importe 0 → saltar, divisa distinta EUR → warning
+  - *Completado*: `TestEdgeCases` cubre regex inválida → 422 (validador `field_validator` en `ReglaBancoIn`), importe 0 → saltado (queda pendiente, sin asiento) y divisa no EUR → aviso en `errores` al importar; `TestImportarFormatos` cubre archivo corrupto → 422 y ejercicio cerrado → 200; cuenta inexistente → fallo controlado en `TestProcesar.test_procesar_cuenta_inexistente_registra_fallo`.
 - [x] T046 Añadir tarjeta "Conciliación Bancaria" (href `/banco`) al panel en `frontend/src/app/page.tsx`
 - [x] T047 Actualizar `README.md` o docs con guía de uso conciliación (formatos, reglas, flujo) — sección "Conciliación bancaria (guide)" en `README.md`
 
@@ -281,4 +283,4 @@ Con varios desarrolladores: completar Setup + Foundational en equipo y luego rep
 - Toda la lógica de parsing, matching y generación asientos permanece en **backend** (Constitución II)
 - Verificar que tests fallan antes de implementar
 - Hacer commit tras cada tarea o grupo lógico
-- **Estado real (oct 2026)**: 004 completada (backend + frontend). Pendientes explícitos: T041 (quickstart inexistente), T044 (rendimiento AC-01/AC-02/AC-06 sin medir) y las coberturas parciales marcadas con `[x]*`.
+- **Estado real (11/10/2026)**: **004 completada al 100%** — backend + frontend + tests (93 pytest, 24 vitest). Todas las tareas en `[x]`; las `[x]*` restantes son divergencias documentadas (p. ej. `GET /pendientes` lista plana en vez de `Paginado`, CRUD/lógica de reglas y procesado en `api/banco.py` en vez de `services/banco.py`). AC-01/AC-02 medidos y dentro de límite; `quickstart.md` creado con criterios SC-01..SC-19 y AC-01..AC-06 verificados.

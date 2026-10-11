@@ -350,14 +350,19 @@ def importar_extractos(
     """
     formato = detectar_formato(file_bytes, filename)
 
-    if formato == "excel":
-        movimientos = parse_excel_santander(file_bytes)
-    elif formato == "csv":
-        movimientos = parse_csv_estandar(file_bytes)
-    elif formato == "csb":
-        movimientos = parse_csb_cuaderno43(file_bytes)
-    else:
-        raise ValueError(f"Formato no soportado: {formato}")
+    try:
+        if formato == "excel":
+            movimientos = parse_excel_santander(file_bytes)
+        elif formato == "csv":
+            movimientos = parse_csv_estandar(file_bytes)
+        elif formato == "csb":
+            movimientos = parse_csb_cuaderno43(file_bytes)
+        else:
+            raise ValueError(f"Formato no soportado: {formato}")
+    except ValueError:
+        raise
+    except Exception as e:  # noqa: BLE001 - parser rotos o archivos corruptos → 422
+        raise ValueError(f"Archivo corrupto ({formato}): {e}") from e
 
     importados = 0
     duplicados = 0
@@ -401,6 +406,11 @@ def importar_extractos(
         )
         session.add(mov_obj)
         importados += 1
+        # Aviso de divisa no EUR: no bloquea la importación (T045)
+        if mov.divisa.upper() != "EUR":
+            errores.append(
+                f"Aviso: divisa distinta de EUR ({mov.divisa}) en {mov.fecha_valor} {mov.importe}"
+            )
 
     session.commit()
     return ImportResponse(

@@ -74,6 +74,7 @@ def guardar_borrador(
     apuntes_recibidos: list[dict[str, Any]],
     usuario_id: int | None = None,
     origen: str | None = None,  # auto | manual | importado (trazabilidad spec 004)
+    commit: bool = True,  # False en el batch de banco: un único commit al final (AC-02)
 ) -> Asiento:
     validar_lineas(apuntes_recibidos)
     _verificar_cuentas_del_ejercicio(
@@ -103,8 +104,9 @@ def guardar_borrador(
                 haber=Decimal(linea["haber"]),
             )
         )
-    session.commit()
-    session.refresh(asiento)
+    if commit:
+        session.commit()
+        session.refresh(asiento)
     return asiento
 
 
