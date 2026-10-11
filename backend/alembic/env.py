@@ -1,9 +1,8 @@
+import os
 from logging.config import fileConfig
-
+from pathlib import Path
 from sqlalchemy import engine_from_config, pool
-
 from alembic import context
-from app.config import get_settings
 from app.models import metadata as target_metadata
 
 config = context.config
@@ -11,7 +10,16 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-config.set_main_option("sqlalchemy.url", get_settings().database_url)
+# Obtener URL de base de datos de manera robusta sin bloquearse por Settings
+db_url = os.getenv("APP_DATABASE_URL")
+if not db_url:
+    try:
+        from app.config import get_settings
+        db_url = get_settings().database_url
+    except Exception:
+        db_url = config.get_main_option("sqlalchemy.url", "sqlite:///./contabilidadv2.db")
+
+config.set_main_option("sqlalchemy.url", db_url)
 
 NAMING_CONVENTION = {
     "ix": "ix_%(column_0_label)s",
