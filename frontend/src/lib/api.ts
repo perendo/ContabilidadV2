@@ -55,6 +55,8 @@ export interface AsientoResumen {
   total_debe: string;
   total_haber: string;
   delta?: string | null;
+  origen?: string | null;
+  regla_id?: number | null;
 }
 
 export interface AsientoDetalle extends Omit<AsientoResumen, "total_debe" | "total_haber" | "delta"> {
@@ -334,6 +336,19 @@ export const api = {
     q.set("limit", String(params.limit ?? 200));
     return request<Paginado<Cuenta>>(`/cuentas?${q.toString()}`);
   },
+  // El backend acota `limit` a 200; para selectores que necesitan el plan completo
+  // se recorren las páginas y se concatenan los items.
+  todasLasCuentas: async (params: { query?: string; nivel?: number } = {}) => {
+    const limit = 200;
+    const items: Cuenta[] = [];
+    for (let offset = 0; ; ) {
+      const page = await api.cuentas({ ...params, offset, limit });
+      items.push(...page.items);
+      offset += page.items.length;
+      if (page.items.length === 0 || offset >= page.total) break;
+    }
+    return items;
+  },
   crearCuenta: (payload: { codigo: string; nombre: string; nivel: number }) =>
     request<Cuenta>("/cuentas", {
       method: "POST",
@@ -437,6 +452,13 @@ export const api = {
       q.set("limit", String(params.limit ?? 50));
       return request<LogProcesamiento[]>(`/banco/logs?${q.toString()}`);
     },
+    // US4: vincula un movimiento a un asiento creado manualmente y lo marca procesado.
+    marcarProcesado: (movimientoId: number, asientoId: number) =>
+      request<MovimientoBanco>(`/banco/movimientos/${movimientoId}/procesado`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ asiento_id: asientoId }),
+      }),
   },
 
   // Informes - Libro Mayor

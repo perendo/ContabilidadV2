@@ -9,6 +9,7 @@ const accesos = [
   { href: "/cuentas", titulo: "Plan de cuentas", descripcion: "Consulta y crea cuentas del ejercicio." },
   { href: "/mayor", titulo: "Libro Mayor", descripcion: "Consulta el Mayor por cuenta y el listado global." },
   { href: "/balance", titulo: "Balance de Sumas y Saldos", descripcion: "Genera el Balance con agregación jerárquica y cuatro columnas." },
+  { href: "/banco", titulo: "Conciliación Bancaria", descripcion: "Importa extractos, define reglas de auto-matching y procesa los pendientes." },
 ];
 
 export default function DashboardPage() {

@@ -22,6 +22,7 @@ import {
 } from "@mui/material";
 import { Download as DownloadIcon } from "@mui/icons-material";
 import { api, type Balance, type FilaBalance } from "@/lib/api";
+import { formatearImporte } from "@/lib/formato";
 
 export default function Balance() {
   const [desde, setDesde] = useState("");
@@ -112,22 +113,22 @@ export default function Balance() {
             <Grid container spacing={2} alignItems="center">
               <Grid item>
                 <Typography color="text.secondary">
-                  Total Debe: <strong>{balance.total_debe}</strong>
+                  Total Debe: <strong>{formatearImporte(balance.total_debe)}</strong>
                 </Typography>
               </Grid>
               <Grid item>
                 <Typography color="text.secondary">
-                  Total Haber: <strong>{balance.total_haber}</strong>
+                  Total Haber: <strong>{formatearImporte(balance.total_haber)}</strong>
                 </Typography>
               </Grid>
               <Grid item>
                 <Typography color="text.secondary">
-                  Total Saldo Deudor: <strong>{balance.total_saldo_deudor}</strong>
+                  Total Saldo Deudor: <strong>{formatearImporte(balance.total_saldo_deudor)}</strong>
                 </Typography>
               </Grid>
               <Grid item>
                 <Typography color="text.secondary">
-                  Total Saldo Acreedor: <strong>{balance.total_saldo_acreedor}</strong>
+                  Total Saldo Acreedor: <strong>{formatearImporte(balance.total_saldo_acreedor)}</strong>
                 </Typography>
               </Grid>
               <Grid item>
@@ -181,18 +182,18 @@ export default function Balance() {
                         {fila.nombre}
                       </TableCell>
                       <TableCell align="center">{fila.nivel}</TableCell>
-                      <TableCell align="right">{fila.suma_debe}</TableCell>
-                      <TableCell align="right">{fila.suma_haber}</TableCell>
-                      <TableCell align="right">{fila.saldo_deudor}</TableCell>
-                      <TableCell align="right">{fila.saldo_acreedor}</TableCell>
+                      <TableCell align="right">{formatearImporte(fila.suma_debe)}</TableCell>
+                      <TableCell align="right">{formatearImporte(fila.suma_haber)}</TableCell>
+                      <TableCell align="right">{formatearImporte(fila.saldo_deudor)}</TableCell>
+                      <TableCell align="right">{formatearImporte(fila.saldo_acreedor)}</TableCell>
                     </TableRow>
                   ))}
                   <TableRow sx={{ fontWeight: "bold", bgColor: "action.hover" }}>
                     <TableCell colSpan={3} align="right">TOTALES</TableCell>
-                    <TableCell align="right">{balance.total_debe}</TableCell>
-                    <TableCell align="right">{balance.total_haber}</TableCell>
-                    <TableCell align="right">{balance.total_saldo_deudor}</TableCell>
-                    <TableCell align="right">{balance.total_saldo_acreedor}</TableCell>
+                    <TableCell align="right">{formatearImporte(balance.total_debe)}</TableCell>
+                    <TableCell align="right">{formatearImporte(balance.total_haber)}</TableCell>
+                    <TableCell align="right">{formatearImporte(balance.total_saldo_deudor)}</TableCell>
+                    <TableCell align="right">{formatearImporte(balance.total_saldo_acreedor)}</TableCell>
                   </TableRow>
                 </TableBody>
               </Table>

@@ -18,6 +18,7 @@ description: "Task list for Libro Mayor y Balance de Sumas y Saldos (Spec 3)"
 - **[P]**: Can run in parallel (different files, no dependencies)
 - **[Story]**: US1, US2, US3 (del spec.md)
 - Paths según plan.md (aplicación web: `backend/` + `frontend/`)
+- **Estado real** (actualizado a 11/10/2026): `[x]` hecho · `[x]*` hecho con divergencias/notas (detalle inline) · `[ ]` pendiente
 
 ---
 
@@ -25,8 +26,8 @@ description: "Task list for Libro Mayor y Balance de Sumas y Saldos (Spec 3)"
 
 **Purpose**: Dependencia de PDF y registro del router de informes
 
-- [ ] T001 Añadir la dependencia `reportlab>=4.0` a `backend/pyproject.toml` e instalar con `..\.venv\Scripts\python.exe -m pip install -e .` (desde `backend/`), verificando que el import funciona
-- [ ] T002 Crear el esqueleto de router en `backend/app/api/informes.py` (`APIRouter(prefix="/informes", tags=["informes"])`, sin endpoints aún) y registrarlo en `backend/app/main.py` con `app.include_router(informes_router, prefix="/api/v1")`
+- [x] T001 Añadir la dependencia `reportlab>=4.0` a `backend/pyproject.toml` e instalar con `..\.venv\Scripts\python.exe -m pip install -e .` (desde `backend/`), verificando que el import funciona
+- [x] T002 Crear el esqueleto de router en `backend/app/api/informes.py` (`APIRouter(prefix="/informes", tags=["informes"])`, sin endpoints aún) y registrarlo en `backend/app/main.py` con `app.include_router(informes_router, prefix="/api/v1")`
 
 ---
 
@@ -36,8 +37,8 @@ description: "Task list for Libro Mayor y Balance de Sumas y Saldos (Spec 3)"
 
 **CRITICAL**: No user story work can begin until this phase is complete
 
-- [ ] T003 [P] Definir los schemas Pydantic de respuesta en `backend/app/schemas/informes.py` con los campos y constraints exactos de data-model.md: `CuentaRef{codigo,nombre,nivel}`, `MovimientoMayor{fecha:date,numero:int,asiento_id:int,concepto:str,debe:Decimal(2),haber:Decimal(2),saldo:Decimal(2)}`, `FilaBalance{codigo,nombre,nivel,suma_debe,suma_haber,saldo_deudor,saldo_acreedor}` (Decimal 2dp, `saldo_deudor=max(saldo,0)`, `saldo_acreedor=max(-saldo,0)`), `FilaMayorCuenta{codigo,nombre,nivel,suma_debe,suma_haber,saldo,saldo_tipo}` con `saldo_tipo ∈ {"deudor","acreedor","cero"}`, `MayorCuentaOut{cuenta,desde,hasta,saldo_inicial,movimientos,total_debe,total_haber,saldo_final}`, `MayorGlobalOut{ejercicio_id,desde,hasta,cuentas}`, `BalanceOut{ejercicio_id,desde,hasta,filas,total_debe,total_haber,total_saldo_deudor,total_saldo_acreedor,cuadra:bool}`
-- [ ] T004 [P] Implementar las primitivas de agregación compartidas en `backend/app/services/informes.py`: `sumas_por_cuenta(session, ejercicio_id, desde, hasta)` (consulta `GROUP BY apunte.cuenta_id` con `JOIN asiento`, `estado='asentado'` y rango `fecha` opcional, importes en `Decimal`), `propagar_jerarquia(cuentas, sumas)` (acumulado de suma_debe/suma_haber por prefijo de `codigo`, incluyendo la propia cuenta) y `clasificar_saldo(saldo)` (`deudor`/`acreedor`/`cero`). Sin endpoints; solo lógica reutilizable.
+- [x] T003 [P] Definir los schemas Pydantic de respuesta en `backend/app/schemas/informes.py` con los campos y constraints exactos de data-model.md: `CuentaRef{codigo,nombre,nivel}`, `MovimientoMayor{fecha:date,numero:int,asiento_id:int,concepto:str,debe:Decimal(2),haber:Decimal(2),saldo:Decimal(2)}`, `FilaBalance{codigo,nombre,nivel,suma_debe,suma_haber,saldo_deudor,saldo_acreedor}` (Decimal 2dp, `saldo_deudor=max(saldo,0)`, `saldo_acreedor=max(-saldo,0)`), `FilaMayorCuenta{codigo,nombre,nivel,suma_debe,suma_haber,saldo,saldo_tipo}` con `saldo_tipo ∈ {"deudor","acreedor","cero"}`, `MayorCuentaOut{cuenta,desde,hasta,saldo_inicial,movimientos,total_debe,total_haber,saldo_final}`, `MayorGlobalOut{ejercicio_id,desde,hasta,cuentas}`, `BalanceOut{ejercicio_id,desde,hasta,filas,total_debe,total_haber,total_saldo_deudor,total_saldo_acreedor,cuadra:bool}`
+- [x] T004 [P] Implementar las primitivas de agregación compartidas en `backend/app/services/informes.py`: `sumas_por_cuenta(session, ejercicio_id, desde, hasta)` (consulta `GROUP BY apunte.cuenta_id` con `JOIN asiento`, `estado='asentado'` y rango `fecha` opcional, importes en `Decimal`), `propagar_jerarquia(cuentas, sumas)` (acumulado de suma_debe/suma_haber por prefijo de `codigo`, incluyendo la propia cuenta) y `clasificar_saldo(saldo)` (`deudor`/`acreedor`/`cero`). Sin endpoints; solo lógica reutilizable.
 
 **Checkpoint**: Foundation ready — US1 y US2 pueden implementarse (en paralelo si hay equipo)
 
@@ -53,18 +54,19 @@ description: "Task list for Libro Mayor y Balance de Sumas y Saldos (Spec 3)"
 
 > **NOTE: Write these tests FIRST, ensure they FAIL before implementation**
 
-- [ ] T005 [US1] Tests de integración del Mayor en `backend/tests/integration/test_informes.py`: cuenta hoja con movimientos ordenados (fecha, numero) y saldo acumulado correcto; `saldo_inicial` con `desde` (FR-007); cuenta de grupo (nivel 1-3) agrega subcuentas por prefijo (FR-002); cuenta sin apuntes → `200` con `movimientos: []` y totales `"0.00"`; `GET /informes/mayor/cuentas` lista solo cuentas con movimiento; contexto de ejercicio ajeno → `403` (FR-008, SC-006)
+- [x] T005 [US1] Tests de integración del Mayor en `backend/tests/integration/test_informes.py`: cuenta hoja con movimientos ordenados (fecha, numero) y saldo acumulado correcto; `saldo_inicial` con `desde` (FR-007); cuenta de grupo (nivel 1-3) agrega subcuentas por prefijo (FR-002); cuenta sin apuntes → `200` con `movimientos: []` y totales `"0.00"`; `GET /informes/mayor/cuentas` lista solo cuentas con movimiento; contexto de ejercicio ajeno → `403` (FR-008, SC-006)
+  - *Nota*: cubierto por `TestMayorCuenta` (saldo acumulado, saldo inicial con `desde`, grupo agrega subcuentas, sin apuntes → estado vacío, listado global), `TestMayorAislamiento` (multi-tenant 403) y `TestMayorValidacion` (404 cuenta inexistente, 422 `desde > hasta`).
 
 ### Implementation for User Story 1
 
-- [ ] T006 [US1] Implementar `mayor_cuenta(session, ejercicio_id, codigo, desde, hasta)` en `backend/app/services/informes.py`: resolver la cuenta del ejercicio (404 si no existe), calcular el subárbol por prefijo de código, obtener `saldo_inicial` (`Σ(debe−haber)` con `fecha < desde`), listar movimientos ordenados por `fecha`, `numero`, `apunte.id` y acumular el saldo línea a línea (FR-001/003/007)
-- [ ] T007 [US1] Implementar `mayor_cuentas(session, ejercicio_id, desde, hasta)` en `backend/app/services/informes.py`: listado de cuentas con movimiento ordenado por `codigo`, con `suma_debe`, `suma_haber`, `saldo` y `saldo_tipo`; incluir compensadas (saldo 0), omitir sin movimiento (FR-002)
-- [ ] T008 [US1] Implementar los endpoints `GET /informes/mayor` (query `cuenta` obligatorio, `desde`, `hasta`) y `GET /informes/mayor/cuentas` (query `desde`, `hasta`) en `backend/app/api/informes.py` usando `EjercicioDep`+`SessionDep` y `mayor_cuenta`/`mayor_cuentas`; devolver `422` si `desde > hasta`, `404` si la cuenta no existe (contracts/informes.md §1-2)
-- [ ] T009 [US1] Añadir en `frontend/src/lib/api.ts` los tipos (`MayorCuenta`, `MovimientoMayor`, `MayorGlobal`, `FilaMayorCuenta`) y los métodos `api.mayor(cuenta, {desde, hasta})` y `api.mayorCuentas({desde, hasta})` reutilizando el helper de cabeceras de contexto existente
-- [ ] T010 [US1] Crear el componente `Mayor` en `frontend/src/components/Mayor.tsx`: selector de cuenta por código/nombre, filtros `desde`/`hasta`, tabla de movimientos (Fecha, Nº, Concepto, Debe, Haber, Saldo acumulado) y listado global con navegación al detalle; estados de carga, vacío y error con MUI v6 (FR-011)
-- [ ] T011 [US1] Crear la página `frontend/src/app/mayor/page.tsx` (client component con `Suspense`) montando el componente `Mayor`
-- [ ] T012 [US1] Añadir la tarjeta "Libro Mayor" (href `/mayor`) al panel en `frontend/src/app/page.tsx`, siguiendo el patrón de `accesos`
-- [ ] T013 [US1] Test de frontend del Mayor en `frontend/tests/Informes.test.tsx`: render de la tabla con el saldo acumulado, estado vacío informativo y listado global
+- [x] T006 [US1] Implementar `mayor_cuenta(session, ejercicio_id, codigo, desde, hasta)` en `backend/app/services/informes.py`: resolver la cuenta del ejercicio (404 si no existe), calcular el subárbol por prefijo de código, obtener `saldo_inicial` (`Σ(debe−haber)` con `fecha < desde`), listar movimientos ordenados por `fecha`, `numero`, `apunte.id` y acumular el saldo línea a línea (FR-001/003/007)
+- [x] T007 [US1] Implementar `mayor_cuentas(session, ejercicio_id, desde, hasta)` en `backend/app/services/informes.py`: listado de cuentas con movimiento ordenado por `codigo`, con `suma_debe`, `suma_haber`, `saldo` y `saldo_tipo`; incluir compensadas (saldo 0), omitir sin movimiento (FR-002)
+- [x] T008 [US1] Implementar los endpoints `GET /informes/mayor` (query `cuenta` obligatorio, `desde`, `hasta`) y `GET /informes/mayor/cuentas` (query `desde`, `hasta`) en `backend/app/api/informes.py` usando `EjercicioDep`+`SessionDep` y `mayor_cuenta`/`mayor_cuentas`; devolver `422` si `desde > hasta`, `404` si la cuenta no existe (contracts/informes.md §1-2)
+- [x] T009 [US1] Añadir en `frontend/src/lib/api.ts` los tipos (`MayorCuenta`, `MovimientoMayor`, `MayorGlobal`, `FilaMayorCuenta`) y los métodos `api.mayor(cuenta, {desde, hasta})` y `api.mayorCuentas({desde, hasta})` reutilizando el helper de cabeceras de contexto existente
+- [x] T010 [US1] Crear el componente `Mayor` en `frontend/src/components/Mayor.tsx`: selector de cuenta por código/nombre, filtros `desde`/`hasta`, tabla de movimientos (Fecha, Nº, Concepto, Debe, Haber, Saldo acumulado) y listado global con navegación al detalle; estados de carga, vacío y error con MUI v6 (FR-011)
+- [x] T011 [US1] Crear la página `frontend/src/app/mayor/page.tsx` (client component con `Suspense`) montando el componente `Mayor`
+- [x] T012 [US1] Añadir la tarjeta "Libro Mayor" (href `/mayor`) al panel en `frontend/src/app/page.tsx`, siguiendo el patrón de `accesos`
+- [x] T013 [US1] Test de frontend del Mayor en `frontend/tests/Informes.test.tsx`: render de la tabla con el saldo acumulado, estado vacío informativo y listado global
 
 **Checkpoint**: El Libro Mayor es funcional y testeable de forma independiente (cuenta + listado global)
 
@@ -80,17 +82,18 @@ description: "Task list for Libro Mayor y Balance de Sumas y Saldos (Spec 3)"
 
 > **NOTE: Write these tests FIRST, ensure they FAIL before implementation**
 
-- [ ] T014 [US2] Tests de integración del Balance en `backend/tests/integration/test_informes.py`: cuatro columnas con saldo clasificado en una sola columna y `cuadra: true` (FR-004/005, SC-002); exclusión total de asientos `borrador` (FR-006, SC-003); cuenta compensada (saldo 0 con movimiento) incluida y cuenta sin movimiento omitida; agregación jerárquica por prefijo (grupo/subgrupo = acumulado de subárbol); precisión de dos decimales sin pérdida de céntimos (FR-012)
+- [x] T014 [US2] Tests de integración del Balance en `backend/tests/integration/test_informes.py`: cuatro columnas con saldo clasificado en una sola columna y `cuadra: true` (FR-004/005, SC-002); exclusión total de asientos `borrador` (FR-006, SC-003); cuenta compensada (saldo 0 con movimiento) incluida y cuenta sin movimiento omitida; agregación jerárquica por prefijo (grupo/subgrupo = acumulado de subárbol); precisión de dos decimales sin pérdida de céntimos (FR-012)
+  - *Nota*: cubierto por `TestBalance` (cuatro columnas + cuadre, excluye borradores, compensada incluida, agregación jerárquica, precisión) y `TestMayorAislamiento`.
 
 ### Implementation for User Story 2
 
-- [ ] T015 [US2] Implementar `balance(session, ejercicio_id, desde, hasta)` en `backend/app/services/informes.py`: derivar las filas jerárquicas ordenadas por `codigo` (niveles 1-3 con acumulado de subárbol, luego cuentas de detalle), clasificar el saldo en `saldo_deudor`/`saldo_acreedor`, totalizar `total_debe`/`total_haber`/`total_saldo_deudor`/`total_saldo_acreedor` y calcular `cuadra = (total_debe == total_haber)` (FR-004/005)
-- [ ] T016 [US2] Implementar el endpoint `GET /informes/balance` (query `desde`, `hasta`) en `backend/app/api/informes.py` usando `EjercicioDep`+`SessionDep` y `balance`; `422` si `desde > hasta` (contracts/informes.md §3)
-- [ ] T017 [US2] Añadir en `frontend/src/lib/api.ts` los tipos (`Balance`, `FilaBalance`) y el método `api.balance({desde, hasta})`
-- [ ] T018 [US2] Crear el componente `Balance` en `frontend/src/components/Balance.tsx`: tabla de cuatro columnas (Suma Debe, Suma Haber, Saldo Deudor, Saldo Acreedor), indentación/nombre por nivel y código, fila de totales y aviso visible si `cuadra === false`; filtros `desde`/`hasta`; estados de carga, vacío y error (FR-004/005/011)
-- [ ] T019 [US2] Crear la página `frontend/src/app/balance/page.tsx` (client component con `Suspense`) montando el componente `Balance`
-- [ ] T020 [US2] Añadir la tarjeta "Balance de Sumas y Saldos" (href `/balance`) al panel en `frontend/src/app/page.tsx`
-- [ ] T021 [US2] Test de frontend del Balance en `frontend/tests/Informes.test.tsx`: render de las cuatro columnas, jerarquía con totales y estado vacío
+- [x] T015 [US2] Implementar `balance(session, ejercicio_id, desde, hasta)` en `backend/app/services/informes.py`: derivar las filas jerárquicas ordenadas por `codigo` (niveles 1-3 con acumulado de subárbol, luego cuentas de detalle), clasificar el saldo en `saldo_deudor`/`saldo_acreedor`, totalizar `total_debe`/`total_haber`/`total_saldo_deudor`/`total_saldo_acreedor` y calcular `cuadra = (total_debe == total_haber)` (FR-004/005)
+- [x] T016 [US2] Implementar el endpoint `GET /informes/balance` (query `desde`, `hasta`) en `backend/app/api/informes.py` usando `EjercicioDep`+`SessionDep` y `balance`; `422` si `desde > hasta` (contracts/informes.md §3)
+- [x] T017 [US2] Añadir en `frontend/src/lib/api.ts` los tipos (`Balance`, `FilaBalance`) y el método `api.balance({desde, hasta})`
+- [x] T018 [US2] Crear el componente `Balance` en `frontend/src/components/Balance.tsx`: tabla de cuatro columnas (Suma Debe, Suma Haber, Saldo Deudor, Saldo Acreedor), indentación/nombre por nivel y código, fila de totales y aviso visible si `cuadra === false`; filtros `desde`/`hasta`; estados de carga, vacío y error (FR-004/005/011)
+- [x] T019 [US2] Crear la página `frontend/src/app/balance/page.tsx` (client component con `Suspense`) montando el componente `Balance`
+- [x] T020 [US2] Añadir la tarjeta "Balance de Sumas y Saldos" (href `/balance`) al panel en `frontend/src/app/page.tsx`
+- [x] T021 [US2] Test de frontend del Balance en `frontend/tests/Informes.test.tsx`: render de las cuatro columnas, jerarquía con totales y estado vacío
 
 **Checkpoint**: US1 y US2 son funcionales e independientemente testeables; el saldo del Mayor de una cuenta coincide con su saldo en el Balance (SC-001)
 
@@ -106,17 +109,18 @@ description: "Task list for Libro Mayor y Balance de Sumas y Saldos (Spec 3)"
 
 > **NOTE: Write these tests FIRST, ensure they FAIL before implementation**
 
-- [ ] T022 [US3] Tests de integración de exportación en `backend/tests/integration/test_informes.py`: CSV con separador `;`, decimal coma, BOM UTF-8 y bloque de encabezado + totales (FR-010/014); PDF con `Content-Type: application/pdf` y encabezado identificativo; `formato` inválido → `422`; el filtro `desde`/`hasta` afecta a Mayor y Balance y coincide con la respuesta JSON de pantalla (SC-005)
+- [x] T022 [US3] Tests de integración de exportación en `backend/tests/integration/test_informes.py`: CSV con separador `;`, decimal coma, BOM UTF-8 y bloque de encabezado + totales (FR-010/014); PDF con `Content-Type: application/pdf` y encabezado identificativo; `formato` inválido → `422`; el filtro `desde`/`hasta` afecta a Mayor y Balance y coincide con la respuesta JSON de pantalla (SC-005)
+  - *Nota*: cubierto por `TestExport` (CSV español, PDF con encabezado, mayor CSV, formato inválido 422). La correspondencia exacta filtro↔pantalla se ejercita vía los mismos servicios JSON/export de `services/informes.py`.
 
 ### Implementation for User Story 3
 
-- [ ] T023 [US3] Implementar el helper de encabezado y `exportar_csv(informe)` en `backend/app/services/informes.py`: BOM UTF-8, separador `;`, decimal coma (`f"{v:.2f}".replace(".", ",")`), encabezado con razón social + CIF, ejercicio (año), rango de fechas, título y fecha/hora de generación, seguido de la tabla y la fila de totales (FR-010/014, R2)
-- [ ] T024 [US3] Implementar `exportar_pdf(informe)` en `backend/app/services/informes.py` con ReportLab (A4, Helvetica, `SimpleDocTemplate` + `Table`): encabezado identificativo (FR-014) y tabla con las mismas columnas/filas que la pantalla (R1)
-- [ ] T025 [US3] Implementar los endpoints `GET /informes/mayor/export` y `GET /informes/balance/export` (query `formato ∈ {csv,pdf}`; `cuenta` obligatorio en el mayor; `desde`/`hasta`) en `backend/app/api/informes.py`, devolviendo `Content-Type` y `Content-Disposition` (attachment) según contracts/informes.md §4; `422` si `formato` no es `csv`/`pdf`
-- [ ] T026 [US3] Añadir en `frontend/src/lib/api.ts` el helper `api.descargarInforme(tipo, formato, params)` que hace `fetch` con las cabeceras `X-Empresa-Id`/`X-Ejercicio-Id` y credenciales, obtiene el `Blob` y el nombre de `Content-Disposition`, y dispara la descarga (R7)
-- [ ] T027 [US3] Añadir botones independientes "Exportar CSV" y "Exportar PDF" en `frontend/src/components/Mayor.tsx` (usando `api.descargarInforme` con el rango de fechas y la cuenta activos)
-- [ ] T028 [US3] Añadir botones independientes "Exportar CSV" y "Exportar PDF" en `frontend/src/components/Balance.tsx` (usando `api.descargarInforme` con el rango de fechas activo)
-- [ ] T029 [US3] Test de frontend de exportación en `frontend/tests/Informes.test.tsx`: cada botón (CSV y PDF) dispara la descarga con el `formato` correcto
+- [x] T023 [US3] Implementar el helper de encabezado y `exportar_csv(informe)` en `backend/app/services/informes.py`: BOM UTF-8, separador `;`, decimal coma (`f"{v:.2f}".replace(".", ",")`), encabezado con razón social + CIF, ejercicio (año), rango de fechas, título y fecha/hora de generación, seguido de la tabla y la fila de totales (FR-010/014, R2)
+- [x] T024 [US3] Implementar `exportar_pdf(informe)` en `backend/app/services/informes.py` con ReportLab (A4, Helvetica, `SimpleDocTemplate` + `Table`): encabezado identificativo (FR-014) y tabla con las mismas columnas/filas que la pantalla (R1)
+- [x] T025 [US3] Implementar los endpoints `GET /informes/mayor/export` y `GET /informes/balance/export` (query `formato ∈ {csv,pdf}`; `cuenta` obligatorio en el mayor; `desde`/`hasta`) en `backend/app/api/informes.py`, devolviendo `Content-Type` y `Content-Disposition` (attachment) según contracts/informes.md §4; `422` si `formato` no es `csv`/`pdf`
+- [x] T026 [US3] Añadir en `frontend/src/lib/api.ts` el helper `api.descargarInforme(tipo, formato, params)` que hace `fetch` con las cabeceras `X-Empresa-Id`/`X-Ejercicio-Id` y credenciales, obtiene el `Blob` y el nombre de `Content-Disposition`, y dispara la descarga (R7)
+- [x] T027 [US3] Añadir botones independientes "Exportar CSV" y "Exportar PDF" en `frontend/src/components/Mayor.tsx` (usando `api.descargarInforme` con el rango de fechas y la cuenta activos)
+- [x] T028 [US3] Añadir botones independientes "Exportar CSV" y "Exportar PDF" en `frontend/src/components/Balance.tsx` (usando `api.descargarInforme` con el rango de fechas activo)
+- [x] T029 [US3] Test de frontend de exportación en `frontend/tests/Informes.test.tsx`: cada botón (CSV y PDF) dispara la descarga con el `formato` correcto
 
 **Checkpoint**: Las tres historias funcionan de forma independiente; la exportación reproduce la pantalla
 
@@ -126,11 +130,14 @@ description: "Task list for Libro Mayor y Balance de Sumas y Saldos (Spec 3)"
 
 **Purpose**: Verificación end-to-end, rendimiento, precisión y edge cases
 
-- [ ] T030 [P] Recorrer y validar la guía `specs/003-libro-mayor-balance/quickstart.md` (REST + UI) y marcar las casillas de criterios de aceptación
-- [ ] T031 Ejecutar backend desde `backend/`: `..\.venv\Scripts\python.exe -m ruff check app tests` y `..\.venv\Scripts\python.exe -m pytest -q`; corregir hasta dejar todo en verde
-- [ ] T032 Ejecutar frontend desde `frontend/`: `npm run lint`, `npx tsc --noEmit` y `npm run build`; corregir hasta dejar todo sin errores
-- [ ] T033 [P] Verificar SC-004 (10.000 asientos asentados por ejercicio generan ambos informes en < 3 s) y FR-012 (suma exacta en `Decimal`, sin pérdida de céntimos)
-- [ ] T034 [P] Verificar edge cases: ejercicio `cerrado` consultable en solo lectura, ejercicio sin asentados (estados vacíos y `cuadra: true`), y distinción entre cuenta compensada (incluida) y cuenta sin movimiento (omitida)
+- [x]* T030 [P] Recorrer y validar la guía `specs/003-libro-mayor-balance/quickstart.md` (REST + UI) y marcar las casillas de criterios de aceptación
+  - *Nota*: casillas SC-001/002/003/005/006 y FR-002/004/010/014 marcadas en el propio `quickstart.md` según cobertura automatizada (`test_informes.py` + `Informes.test.tsx`); SC-004 (rendimiento) queda sin marcar, no medido (ver T033).
+- [x] T031 Ejecutar backend desde `backend/`: `..\.venv\Scripts\python.exe -m ruff check app tests` y `..\.venv\Scripts\python.exe -m pytest -q`; corregir hasta dejar todo en verde — ✅ ruff limpio y suite completa en verde (77 tests, incluidos `test_informes.py`)
+- [x] T032 Ejecutar frontend desde `frontend/`: `npm run lint`, `npx tsc --noEmit` y `npm run build`; corregir hasta dejar todo sin errores — ✅ lint, tsc y build en verde
+- [x]* T033 [P] Verificar SC-004 (10.000 asientos asentados por ejercicio generan ambos informes en < 3 s) y FR-012 (suma exacta en `Decimal`, sin pérdida de céntimos)
+  - *Parcial*: FR-012 cubierto por `test_balance_precision_dos_decimales`; SC-004 no medido (sin benchmark de volumen).
+- [x]* T034 [P] Verificar edge cases: ejercicio `cerrado` consultable en solo lectura, ejercicio sin asentados (estados vacíos y `cuadra: true`), y distinción entre cuenta compensada (incluida) y cuenta sin movimiento (omitida)
+  - *Parcial*: compensada vs sin movimiento cubierto (`test_balance_cuenta_compensada_saldo_cero_incluida`, `test_mayor_cuenta_sin_apuntes_estado_vacio`, `test_mayor_global_lista_cuentas_con_movimiento`); ejercicio cerrado en solo lectura y ejercicio sin asentados no tienen verificación explícita en `test_informes.py`.
 
 ---
 
@@ -212,3 +219,4 @@ Con varios desarrolladores: completar Setup + Foundational en equipo y luego rep
 - Toda agregación y generación CSV/PDF permanece en el backend (Constitución II)
 - Verificar que los tests fallan antes de implementar
 - Hacer commit tras cada tarea o grupo lógico
+- **Estado real (11/10/2026)**: 003 completada (backend + frontend, todo `[x]` salvo T030/T033/T034 parciales por SC-004 no medido y edge cases sin test explícito). El `tasks.md` estaba completamente desactualizado (todo `[ ]` pese a estar implementada).

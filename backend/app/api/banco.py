@@ -9,6 +9,7 @@ from sqlmodel import select
 
 from app.api.deps import EjercicioDep, EmpresaDep, SessionDep, UsuarioDep
 from app.models.contable import (
+    Asiento,
     LogProcesamientoBanco,
     MovimientoBanco,
     ReglaBanco,
@@ -16,6 +17,7 @@ from app.models.contable import (
 from app.schemas.banco import (
     ImportResponse,
     LogProcesamientoOut,
+    MarcarProcesadoRequest,
     MovimientoBancoOut,
     ProcesarResponse,
     ReglaBancoIn,
@@ -107,6 +109,33 @@ def listar_pendientes(
     )
 
     return session.exec(stmt).all()
+
+
+@banco_router.post("/movimientos/{movimiento_id}/procesado", response_model=MovimientoBancoOut)
+def marcar_movimiento_procesado(
+    movimiento_id: int,
+    payload: MarcarProcesadoRequest,
+    session: SessionDep,
+    ejercicio: EjercicioDep,
+    empresa: EmpresaDep,
+    usuario: UsuarioDep,
+):
+    """Marca un movimiento como procesado tras crear un asiento manual desde pendientes (US4)."""
+    mov = session.get(MovimientoBanco, movimiento_id)
+    if not mov or mov.ejercicio_id != ejercicio:
+        raise HTTPException(status_code=404, detail="Movimiento no encontrado")
+    if mov.procesado:
+        raise HTTPException(status_code=409, detail="El movimiento ya está procesado")
+
+    asiento = session.get(Asiento, payload.asiento_id)
+    if not asiento or asiento.ejercicio_id != ejercicio:
+        raise HTTPException(status_code=404, detail="Asiento no encontrado")
+
+    mov.procesado = True
+    mov.asiento_id = asiento.id
+    session.commit()
+    session.refresh(mov)
+    return mov
 
 
 # =============================================================================
@@ -313,9 +342,14 @@ def procesar_pendientes(
                     {"cuenta_id": cuenta_haber_obj.id, "debe": haber, "haber": debe},
                 ],
                 usuario_id=usuario.id,
+                origen="auto",
             )
             if regla.auto_asentar:
                 svc_asientos.asentar(session, asiento, usuario_id=usuario.id)
+
+            # Trazabilidad US5 (T037): marca la regla que generó el asiento.
+            asiento.regla_id = regla.id
+            session.commit()
 
             mov.procesado = True
             mov.asiento_id = asiento.id

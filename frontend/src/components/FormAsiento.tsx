@@ -13,6 +13,10 @@ import {
   Typography,
 } from "@mui/material";
 
+import { formatearImporte } from "@/lib/formato";
+
+import ImporteInput from "@/components/ImporteInput";
+
 export interface FilaApunte {
   id: number;
   cuentaId: string;
@@ -190,19 +194,15 @@ export default function FormAsiento({
               </option>
             ))}
           </select>
-          <input
-            aria-label="debe"
-            type="number"
-            step="0.01"
+          <ImporteInput
+            label="debe"
             value={fila.debe}
-            onChange={(e) => actualizar(fila.id, "debe", e.target.value)}
+            onChange={(v) => actualizar(fila.id, "debe", v)}
           />
-          <input
-            aria-label="haber"
-            type="number"
-            step="0.01"
+          <ImporteInput
+            label="haber"
             value={fila.haber}
-            onChange={(e) => actualizar(fila.id, "haber", e.target.value)}
+            onChange={(v) => actualizar(fila.id, "haber", v)}
           />
           <button disabled={filas.length <= 2} onClick={() => quitarFila(fila.id)}>
             Quitar
@@ -213,7 +213,7 @@ export default function FormAsiento({
       <button onClick={anadirFila}>Añadir línea</button>
 
       <p data-testid="delta">
-        Δ = <strong>{delta}</strong>
+        Δ = <strong>{formatearImporte(delta)}</strong>
       </p>
 
       <button

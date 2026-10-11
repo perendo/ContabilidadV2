@@ -149,13 +149,16 @@ npm run build
 
 ## 5. Criterios de aceptación (resumen)
 
-- [ ] SC-001: el saldo final del Mayor de una cuenta = su saldo en el Balance.
-- [ ] SC-002: `.cuadra == true` (ΣDebe = ΣHaber) en todas las consultas.
-- [ ] SC-003: los asientos `borrador` quedan excluidos al 100%.
-- [ ] SC-004: informe de 10.000 asientos en < 3 s.
-- [ ] SC-005: el CSV/PDF reproduce exactamente lo mostrado (0 diferencias).
-- [ ] SC-006: 0 accesos cruzados entre empresas/ejercicios.
-- [ ] FR-002: Mayor en ambos modos (cuenta y listado global) y por cualquier nivel.
-- [ ] FR-004: Balance con jerarquía, cuatro columnas e inclusión de compensadas.
-- [ ] FR-010: botones independientes CSV y PDF en ambos informes.
-- [ ] FR-014: encabezado identificativo en las exportaciones.
+- [x] SC-001: el saldo final del Mayor de una cuenta = su saldo en el Balance.
+- [x] SC-002: `.cuadra == true` (ΣDebe = ΣHaber) en todas las consultas.
+- [x] SC-003: los asientos `borrador` quedan excluidos al 100%.
+- [ ] SC-004: informe de 10.000 asientos en < 3 s. *(no medido)*
+- [x] SC-005: el CSV/PDF reproduce exactamente lo mostrado (0 diferencias).
+- [x] SC-006: 0 accesos cruzados entre empresas/ejercicios.
+- [x] FR-002: Mayor en ambos modos (cuenta y listado global) y por cualquier nivel.
+- [x] FR-004: Balance con jerarquía, cuatro columnas e inclusión de compensadas.
+- [x] FR-010: botones independientes CSV y PDF en ambos informes.
+- [x] FR-014: encabezado identificativo en las exportaciones.
+
+> Casillas marcadas según cobertura automatizada (`test_informes.py` + `Informes.test.tsx`) a 11/10/2026;
+> la única pendiente es SC-004 (rendimiento), sin medir.

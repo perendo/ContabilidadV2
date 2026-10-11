@@ -34,6 +34,7 @@ import {
   TableChart as TableChartIcon,
 } from "@mui/icons-material";
 import { api, type MayorCuenta, type FilaMayorCuenta, type MayorGlobal } from "@/lib/api";
+import { formatearImporte } from "@/lib/formato";
 
 export default function Mayor() {
   const [modo, setModo] = useState<"cuenta" | "global">("cuenta");
@@ -48,9 +49,9 @@ export default function Mayor() {
 
   const cargarCuentas = useCallback(async () => {
     try {
-      const res = await api.cuentas({ limit: 500 });
+      const res = await api.todasLasCuentas();
       setCuentasOptions(
-        res.items.map((c) => ({
+        res.map((c) => ({
           value: c.codigo,
           label: `${c.codigo} - ${c.nombre}`,
         }))
@@ -207,22 +208,22 @@ export default function Mayor() {
                 </Grid>
                 <Grid item>
                   <Typography color="text.secondary">
-                    Saldo inicial: <strong>{mayorCuenta.saldo_inicial}</strong>
+                    Saldo inicial: <strong>{formatearImporte(mayorCuenta.saldo_inicial)}</strong>
                   </Typography>
                 </Grid>
                 <Grid item>
                   <Typography color="text.secondary">
-                    Total Debe: <strong>{mayorCuenta.total_debe}</strong>
+                    Total Debe: <strong>{formatearImporte(mayorCuenta.total_debe)}</strong>
                   </Typography>
                 </Grid>
                 <Grid item>
                   <Typography color="text.secondary">
-                    Total Haber: <strong>{mayorCuenta.total_haber}</strong>
+                    Total Haber: <strong>{formatearImporte(mayorCuenta.total_haber)}</strong>
                   </Typography>
                 </Grid>
                 <Grid item>
                   <Typography color="text.secondary" sx={{ fontWeight: "bold" }}>
-                    Saldo final: <strong>{mayorCuenta.saldo_final}</strong>
+                    Saldo final: <strong>{formatearImporte(mayorCuenta.saldo_final)}</strong>
                   </Typography>
                 </Grid>
                 <Grid item>
@@ -271,10 +272,10 @@ export default function Mayor() {
                         <TableCell>{mov.fecha}</TableCell>
                         <TableCell align="center">{mov.numero}</TableCell>
                         <TableCell>{mov.concepto}</TableCell>
-                        <TableCell align="right">{mov.debe}</TableCell>
-                        <TableCell align="right">{mov.haber}</TableCell>
+                        <TableCell align="right">{formatearImporte(mov.debe)}</TableCell>
+                        <TableCell align="right">{formatearImporte(mov.haber)}</TableCell>
                         <TableCell align="right" sx={{ fontWeight: 500 }}>
-                          {mov.saldo}
+                          {formatearImporte(mov.saldo)}
                         </TableCell>
                       </TableRow>
                     ))}
@@ -282,9 +283,9 @@ export default function Mayor() {
                       <TableCell colSpan={3} align="right">
                         TOTALES
                       </TableCell>
-                      <TableCell align="right">{mayorCuenta.total_debe}</TableCell>
-                      <TableCell align="right">{mayorCuenta.total_haber}</TableCell>
-                      <TableCell align="right">{mayorCuenta.saldo_final}</TableCell>
+                      <TableCell align="right">{formatearImporte(mayorCuenta.total_debe)}</TableCell>
+                      <TableCell align="right">{formatearImporte(mayorCuenta.total_haber)}</TableCell>
+                      <TableCell align="right">{formatearImporte(mayorCuenta.saldo_final)}</TableCell>
                     </TableRow>
                   </TableBody>
                 </Table>
@@ -331,10 +332,10 @@ export default function Mayor() {
                       <TableCell sx={{ fontWeight: 500 }}>{cuenta.codigo}</TableCell>
                       <TableCell>{cuenta.nombre}</TableCell>
                       <TableCell align="center">{cuenta.nivel}</TableCell>
-                      <TableCell align="right">{cuenta.suma_debe}</TableCell>
-                      <TableCell align="right">{cuenta.suma_haber}</TableCell>
+                      <TableCell align="right">{formatearImporte(cuenta.suma_debe)}</TableCell>
+                      <TableCell align="right">{formatearImporte(cuenta.suma_haber)}</TableCell>
                       <TableCell align="right" sx={{ fontWeight: 500 }}>
-                        {cuenta.saldo}
+                        {formatearImporte(cuenta.saldo)}
                       </TableCell>
                       <TableCell>
                         <Chip

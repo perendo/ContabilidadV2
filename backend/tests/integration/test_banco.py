@@ -2,7 +2,7 @@ from decimal import Decimal
 
 from sqlmodel import select
 
-from app.models import Apunte, Asiento, MovimientoBanco, ReglaBanco
+from app.models import Apunte, Asiento, Cuenta, MovimientoBanco, ReglaBanco
 
 
 def _headers(ctx) -> dict[str, str]:
@@ -148,3 +148,84 @@ class TestProcesar:
 
         mov = session.exec(select(MovimientoBanco)).one()
         assert mov.procesado is False
+
+
+class TestPendientesManuales:
+    def test_crear_asiento_manual_y_marcar_procesado(self, client, session, contexto):
+        ctx = contexto()
+        _importar(client, ctx)
+
+        pend = client.get("/api/v1/banco/pendientes", headers=_headers(ctx))
+        assert pend.status_code == 200
+        mov = pend.json()[0]
+
+        cuenta_debe = session.exec(
+            select(Cuenta).where(
+                Cuenta.ejercicio_id == ctx["ejercicio"].id, Cuenta.codigo == "57200001"
+            )
+        ).one()
+        cuenta_haber = session.exec(
+            select(Cuenta).where(
+                Cuenta.ejercicio_id == ctx["ejercicio"].id, Cuenta.codigo == "41000000"
+            )
+        ).one()
+
+        resp = client.post(
+            "/api/v1/asientos",
+            headers=_headers(ctx),
+            json={
+                "fecha": "2026-02-05",
+                "concepto": "Recibo nomina energia",
+                "apuntes": [
+                    {"cuenta_id": cuenta_debe.id, "debe": "1000.50", "haber": "0.00"},
+                    {"cuenta_id": cuenta_haber.id, "debe": "0.00", "haber": "1000.50"},
+                ],
+            },
+        )
+        assert resp.status_code == 201
+        asiento = resp.json()
+        assert asiento["origen"] == "manual"
+        assert asiento["regla_id"] is None
+
+        proc = client.post(
+            f"/api/v1/banco/movimientos/{mov['id']}/procesado",
+            headers=_headers(ctx),
+            json={"asiento_id": asiento["id"]},
+        )
+        assert proc.status_code == 200
+        mov_out = proc.json()
+        assert mov_out["procesado"] is True
+        assert mov_out["asiento_id"] == asiento["id"]
+
+        # Re-procesar el mismo movimiento → 409
+        dup = client.post(
+            f"/api/v1/banco/movimientos/{mov['id']}/procesado",
+            headers=_headers(ctx),
+            json={"asiento_id": asiento["id"]},
+        )
+        assert dup.status_code == 409
+
+        # Movimiento inexistente → 404
+        nf = client.post(
+            "/api/v1/banco/movimientos/999999/procesado",
+            headers=_headers(ctx),
+            json={"asiento_id": asiento["id"]},
+        )
+        assert nf.status_code == 404
+
+    def test_procesar_auto_marca_origen_y_regla(self, client, session, contexto):
+        ctx = contexto()
+        assert _crear_regla(client, ctx, auto_asentar=False).status_code == 201
+        _importar(client, ctx)
+
+        resp = client.post("/api/v1/banco/procesar", headers=_headers(ctx))
+        assert resp.status_code == 200
+        assert resp.json()["creados"] == 1
+
+        asiento = session.exec(select(Asiento)).one()
+        assert asiento.origen == "auto"
+        assert asiento.regla_id is not None
+
+        detalle = client.get(f"/api/v1/asientos/{asiento.id}", headers=_headers(ctx))
+        assert detalle.status_code == 200
+        assert detalle.json()["origen"] == "auto"

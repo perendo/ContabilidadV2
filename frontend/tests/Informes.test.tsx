@@ -10,6 +10,10 @@ vi.mock("@/lib/api", () => {
         { id: 1, codigo: "570", nombre: "Caja", nivel: 3 },
         { id: 2, codigo: "410", nombre: "Proveedores", nivel: 3 },
       ]}),
+      todasLasCuentas: vi.fn().mockResolvedValue([
+        { id: 1, codigo: "570", nombre: "Caja", nivel: 3 },
+        { id: 2, codigo: "410", nombre: "Proveedores", nivel: 3 },
+      ]),
       mayor: vi.fn(),
       mayorCuentas: vi.fn(),
       balance: vi.fn(),

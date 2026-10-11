@@ -76,6 +76,10 @@ class ImportRequest(BaseModel):
     ignorar_duplicados: bool = False
 
 
+class MarcarProcesadoRequest(BaseModel):
+    asiento_id: int = Field(gt=0)
+
+
 class ImportResponse(BaseModel):
     importados: int
     duplicados: int

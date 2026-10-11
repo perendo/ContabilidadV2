@@ -73,6 +73,7 @@ def guardar_borrador(
     concepto: str,
     apuntes_recibidos: list[dict[str, Any]],
     usuario_id: int | None = None,
+    origen: str | None = None,  # auto | manual | importado (trazabilidad spec 004)
 ) -> Asiento:
     validar_lineas(apuntes_recibidos)
     _verificar_cuentas_del_ejercicio(
@@ -89,6 +90,7 @@ def guardar_borrador(
         estado="borrador",
         creado_por_usuario_id=uid,
         version=1,
+        origen=origen,
     )
     session.add(asiento)
     session.flush()

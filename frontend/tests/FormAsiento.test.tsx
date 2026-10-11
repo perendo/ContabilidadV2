@@ -27,15 +27,16 @@ async function rellenarLinea(i: number, cuenta: number, debe: string, haber: str
   const user = userEvent.setup();
   const fila = screen.getByTestId(`fila-${i}`);
   const selects = fila.querySelectorAll("select");
-  const inputs = fila.querySelectorAll('input[type="number"]');
+  const debeInput = fila.querySelector('input[aria-label="debe"]') as HTMLInputElement;
+  const haberInput = fila.querySelector('input[aria-label="haber"]') as HTMLInputElement;
   await user.selectOptions(selects[0], String(cuenta));
-  await user.clear(inputs[0]);
+  await user.clear(debeInput);
   if (debe) {
-    await user.type(inputs[0], debe);
+    await user.type(debeInput, debe);
   }
-  await user.clear(inputs[1]);
+  await user.clear(haberInput);
   if (haber) {
-    await user.type(inputs[1], haber);
+    await user.type(haberInput, haber);
   }
 }
 

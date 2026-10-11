@@ -13,7 +13,7 @@ function AsientoNuevo() {
   const borradorId = params.get("borrador");
   const [guardadoId, setGuardadoId] = useState<number | null>(null);
 
-  const cuentasQ = useCargar(() => api.cuentas({ limit: 500 }), []);
+  const cuentasQ = useCargar(() => api.todasLasCuentas(), []);
   const ejerciciosQ = useCargar(() => api.ejercicios(), []);
   const detalleQ = useCargar(
     () => (borradorId ? api.asientoDetalle(Number(borradorId)) : Promise.resolve(null)),
@@ -69,7 +69,7 @@ function AsientoNuevo() {
       </Typography>
       <FormAsiento
         key={editandoId ?? "nuevo"}
-        cuentas={cuentasQ.data?.items ?? []}
+        cuentas={cuentasQ.data ?? []}
         ejercicioAbierto={!!ejercicioAbierto}
         inicial={edicion ?? null}
         onGuardarBorrador={guardar}

@@ -35,7 +35,7 @@ export default function PlanCuentas() {
   const [error, setError] = useState<string | null>(null);
 
   const { data, loading, recargar } = useCargar(
-    () => api.cuentas({ query: busqueda || undefined }),
+    () => api.todasLasCuentas({ query: busqueda || undefined }),
     [busqueda]
   );
 
@@ -80,7 +80,7 @@ export default function PlanCuentas() {
 
       {loading ? (
         <Skeleton variant="rectangular" height={200} />
-      ) : data && data.items.length > 0 ? (
+      ) : data && data.length > 0 ? (
         <Table data-testid="tabla-cuentas">
           <TableHead>
             <TableRow>
@@ -91,7 +91,7 @@ export default function PlanCuentas() {
             </TableRow>
           </TableHead>
           <TableBody>
-            {data.items.map((c) => (
+            {data.map((c) => (
               <TableRow key={c.id} hover>
                 <TableCell
                   sx={{

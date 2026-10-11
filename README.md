@@ -128,6 +128,22 @@ Base path `/api/v1`. Cuerpos JSON; fechas `YYYY-MM-DD`; importes como cadena dec
 
 Códigos: `400` contexto/firma inválida · `401` no autenticado · `403` sin acceso · `404` inexistente · `409` conflicto de estado/unicidad · `422` validación/descuadre.
 
+## Conciliación bancaria (guide)
+
+Flujo completo de la spec 004, todo desde `Conciliación Bancaria` en el dashboard (`/banco`):
+
+1. **Importar extracto** (`/banco/importar`): arrastra o selecciona un fichero del banco. Formatos soportados por detección automática:
+   - **Excel Santander** (`.xlsx`/`.xls`): cabecera de ~7 filas y fila de encabezados "Fecha Operación", 12 columnas.
+   - **CSV estándar** (`.csv`): separador `;` y decimales con coma, codificado UTF-8 o Latin-1.
+   - **CSB / Cuaderno 43** (`.csb`/`.txt`): registros 01/02/03/99 de longitud fija (AEB Norma 43).
+   - Se hace vista previa de las primeras 20 filas para CSV/CSB. Marca "Ignorar duplicados" para que un *re-import* del mismo extracto no falle: los duplicados se detectan por hash y se descartan.
+2. **Reglas de auto-matching** (`/banco/reglas`): cada regla es un patrón regex (sin distinguir mayúsculas) que se aplica al concepto/referencia, dos cuentas del ejercicio (debe/haber), prioridad (a mayor valor, antes se evalúa), importe fijo o porcentaje opcional y `auto_asentar`. Usa **Simular** para ver qué pendientes casarían antes de procesar.
+3. **Procesar** (`/banco/pendientes` → *Procesar automático*): un *batch* recorre los movimientos pendientes, aplica las reglas por prioridad y genera asientos **reutilizando el servicio contable** (correlativo y ΣDebe = ΣHaber garantizados). Un asiento generado por regla queda marcado con `origen="auto"` y `regla_id`. Los que no casan permanecen pendientes.
+4. **Pendientes manuales**: cada movimiento sin casar ofrece *Crear asiento*: elige las dos cuentas (importes pre-llenados con el signo convertido a debe/haber) y "Guardar y procesar" crea el asiento (`origen="manual"`) y marca el movimiento procesado enlazándolo.
+5. **Trazabilidad** (`/banco/procesados`): historial de cada procesamiento (fecha, usuario, asientos creados, pendientes, fallidos y reglas aplicadas). Desde el Diario hay un acceso directo a los pendientes.
+
+Los movimientos importados no modifican cuentas hasta que una regla (o un usuario) genera el asiento; el `importar` es solo de lectura sobre el ejercicio (funciona con ejercicio cerrado).
+
 ## Tests
 
 ```powershell

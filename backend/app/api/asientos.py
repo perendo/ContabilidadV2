@@ -41,6 +41,8 @@ def _to_out(asiento: Asiento, session: SessionDep) -> AsientoOut:
         created_at=asiento.created_at,
         asentado_at=asiento.asentado_at,
         version=asiento.version,
+        origen=asiento.origen,
+        regla_id=asiento.regla_id,
     )
 
 
@@ -77,6 +79,7 @@ def crear_borrador(
         payload.concepto,
         [a.model_dump() for a in payload.apuntes],
         usuario_id=usuario.id,
+        origen="manual",
     )
     return _to_out(asiento, session)
 

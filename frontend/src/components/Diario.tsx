@@ -21,8 +21,10 @@ import {
   Typography,
 } from "@mui/material";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 import { ApiError, api, type AsientoDetalle } from "@/lib/api";
+import { formatearImporte } from "@/lib/formato";
 import { useCargar } from "@/lib/useCargar";
 
 const LIMIT = 20;
@@ -93,8 +95,8 @@ function TablaAsientos({
                     <TableCell>{a.numero ?? "—"}</TableCell>
                     <TableCell>{a.fecha}</TableCell>
                     <TableCell>{a.concepto}</TableCell>
-                    <TableCell align="right">{a.total_debe}</TableCell>
-                    <TableCell align="right">{a.total_haber}</TableCell>
+                    <TableCell align="right">{formatearImporte(a.total_debe)}</TableCell>
+                    <TableCell align="right">{formatearImporte(a.total_haber)}</TableCell>
                     {editable && (
                       <TableCell align="right" onClick={(e) => e.stopPropagation()}>
                         <Button
@@ -130,8 +132,8 @@ function TablaAsientos({
                                 {detalle.apuntes.map((p, i) => (
                                   <TableRow key={i}>
                                     <TableCell>{p.cuenta_codigo}</TableCell>
-                                    <TableCell align="right">{p.debe}</TableCell>
-                                    <TableCell align="right">{p.haber}</TableCell>
+                                    <TableCell align="right">{formatearImporte(p.debe)}</TableCell>
+                                    <TableCell align="right">{formatearImporte(p.haber)}</TableCell>
                                   </TableRow>
                                 ))}
                               </TableBody>
@@ -172,10 +174,15 @@ export default function Diario() {
 
   return (
     <Box>
-      <Tabs value={tab} onChange={(_, v) => setTab(v)} sx={{ mb: 2 }}>
-        <Tab label="Diario" />
-        <Tab label="Borradores" />
-      </Tabs>
+      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1 }}>
+        <Tabs value={tab} onChange={(_, v) => setTab(v)}>
+          <Tab label="Diario" />
+          <Tab label="Borradores" />
+        </Tabs>
+        <Button component={Link} href="/banco/pendientes" variant="outlined" size="small">
+          Pendientes de conciliar
+        </Button>
+      </Box>
 
       {tab === 0 ? (
         <>
