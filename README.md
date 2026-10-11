@@ -37,6 +37,8 @@ La lógica contable (validaciones, cuadre, correlativos, cierres de periodo y ai
 
 ## Puesta en marcha
 
+> **Finales de línea**: están fijados en [`.gitattributes`](.gitattributes) (texto en **LF**; `start.bat` y `*.ps1` en **CRLF**). No hace falta configurar `core.autocrlf`: en un clon nuevo los EOL salen correctos.
+
 ### 1. Backend
 
 El entorno virtual vive en la **raíz del repositorio**.
