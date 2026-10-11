@@ -26,8 +26,8 @@ La lógica contable (validaciones, cuadre, correlativos, cierres de periodo y ai
 |------|------------|
 | Backend | Python 3.12 · FastAPI · SQLModel/SQLAlchemy 2 · Alembic · PyJWT · argon2-cffi · slowapi |
 | Base de datos | SQLite en modo WAL |
-| Frontend | Next.js 15 (App Router) · React 19 · MUI v6 · Emotion |
-| Tests | pytest + httpx (backend) · vitest + Testing Library (frontend) |
+| Frontend | Next.js 15.5 (App Router) · React 19 · MUI v6 · Emotion |
+| Tests | pytest + httpx (backend) · vitest 4 + Testing Library (frontend) |
 | Calidad | ruff, black · ESLint, TypeScript, Prettier |
 
 ## Requisitos
@@ -184,6 +184,12 @@ npm test
 `backend/tests/conftest.py` crea una BD temporal migrada con `alembic upgrade head`; por eso los tests deben ejecutarse desde `backend/`. Verificación completa de release: `ruff` → `pytest` → `lint` → `tsc --noEmit` → `build`.
 
 `backend/tests/integration/test_quickstart_fiscales.py` recorre de extremo a extremo los 4 escenarios de [`specs/005-modulos-fiscales/quickstart.md`](specs/005-modulos-fiscales/quickstart.md) (factura de venta + asiento, compra con retención + libros, liquidación del IS + vista 200 y cierre + descarga/regeneración del fichero AEAT).
+
+## Dependencias y seguridad
+
+- `next` está fijado a la última 15.x (**15.5.27**, con `eslint-config-next` a juego) y `package.json` incluye un `override` de **`postcss` ^8.5.29**: con ello `npm audit` pasa de 14 a 5 avisos y deja **0 vulnerabilidades críticas** (desaparecen las de `next`, `postcss` y `sharp`). Tras tocar dependencias, regenerar el lockfile con `npm install`.
+- `vitest` 4 (Vite 8 / oxc) ejecuta los tests; el JSX se configura vía `oxc.jsx` en `vitest.config.mts`.
+- El único aviso residual de `npm audit` es `braces` (dependencia de **lint** de `eslint-config-next`), que ya está en su última versión y **sin parche publicado**; no afecta al runtime de producción.
 
 ## Estructura
 
