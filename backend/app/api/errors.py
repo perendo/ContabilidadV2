@@ -25,3 +25,8 @@ def register_error_handlers(app: FastAPI) -> None:
             status_code=422,
             content={"detail": "Datos de entrada inválidos"},
         )
+
+    @app.exception_handler(ValueError)
+    async def value_error_handler(_request: Request, exc: ValueError) -> JSONResponse:
+        """Reglas de dominio que usan ValueError -> 422 (no 500)."""
+        return JSONResponse(status_code=422, content={"detail": str(exc)})

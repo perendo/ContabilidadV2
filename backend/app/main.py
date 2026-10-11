@@ -51,7 +51,7 @@ app.add_middleware(
 app.include_router(asientos_router, prefix="/api/v1")
 app.include_router(cuentas_router, prefix="/api/v1")
 app.include_router(auth_router, prefix="/api/v1")
-app.include_router(empresas_router)
+app.include_router(empresas_router, prefix="/api/v1")
 app.include_router(informes_router, prefix="/api/v1")
 app.include_router(banco_router, prefix="/api/v1")
 app.include_router(facturas_router, prefix="/api/v1")

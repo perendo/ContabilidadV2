@@ -71,4 +71,19 @@ describe("Frontend API Client - Hardening Anti-CSRF", () => {
     expect(urls.every((u) => u.includes("limit=200"))).toBe(true);
     expect(urls.some((u) => u.includes("limit=500"))).toBe(false);
   });
+
+  it("logout limpia las cookies de contexto (empresa_id / ejercicio_id)", async () => {
+    document.cookie = "empresa_id=7; path=/";
+    document.cookie = "ejercicio_id=3; path=/";
+    vi.spyOn(global, "fetch").mockResolvedValue({
+      ok: true,
+      status: 200,
+      text: async () => "",
+    } as unknown as Response);
+
+    await api.logout();
+
+    expect(document.cookie).not.toContain("empresa_id");
+    expect(document.cookie).not.toContain("ejercicio_id");
+  });
 });

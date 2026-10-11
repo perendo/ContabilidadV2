@@ -401,6 +401,11 @@ function setCookie(nombre: string, valor: string) {
   document.cookie = `${nombre}=${encodeURIComponent(valor)}; path=/; samesite=lax`;
 }
 
+function deleteCookie(nombre: string) {
+  if (typeof document === "undefined") return;
+  document.cookie = `${nombre}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; samesite=lax`;
+}
+
 export function getEmpresaId(): string | undefined {
   return getCookie("empresa_id");
 }
@@ -516,7 +521,16 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ username, password }),
     }),
-  logout: () => request<void>("/auth/logout", { method: "POST" }),
+  logout: async () => {
+    try {
+      await request<void>("/auth/logout", { method: "POST" });
+    } finally {
+      // Limpia el contexto de empresa/ejercicio para que no se filtre a otra
+      // sesión en el mismo navegador (evita 403/contexto cruzado al re-loguear).
+      deleteCookie("empresa_id");
+      deleteCookie("ejercicio_id");
+    }
+  },
   empresas: () => request<Empresa[]>("/empresas"),
   crearEmpresa: (payload: {
     cif: string;

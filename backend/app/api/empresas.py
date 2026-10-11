@@ -7,7 +7,7 @@ from app.models import Ejercicio, Empresa, empresa_usuario
 from app.schemas.identidad import EjercicioIn, EjercicioOut, EmpresaIn, EmpresaOut
 from app.services import identidad as svc
 
-router = APIRouter(prefix="/api/v1", tags=["identidad"])
+router = APIRouter(tags=["identidad"])
 
 
 @router.get("/empresas", response_model=list[EmpresaOut])

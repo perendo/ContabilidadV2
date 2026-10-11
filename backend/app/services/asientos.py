@@ -178,6 +178,14 @@ def asentar(session: Session, asiento: Asiento, usuario_id: int | None = None) -
             session.commit()
         except IntegrityError:
             session.rollback()
+            # Tras el rollback la instancia queda expirada: hay que resincronizarla
+            # con la BD para no arrastrar valores obsoletos al recalcular el
+            # correlativo. Si el asiento formaba parte de la transacción revertida
+            # (p. ej. el batch de banco con commit diferido) ya no existe y no se
+            # puede reintentar sobre él.
+            if asiento not in session:
+                raise ApiError(409, "No se pudo asignar un correlativo único") from None
+            session.refresh(asiento)
             asiento.estado = "borrador"
             asiento.numero = None
             continue

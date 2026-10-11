@@ -1,4 +1,4 @@
-﻿"""tablas iniciales (identidad y contable)
+"""tablas iniciales (identidad y contable)
 
 Revision ID: bb1c920e98ab
 Revises: 

@@ -613,6 +613,12 @@ class TestEdgeCases:
         resp = _crear_regla(client, ctx, patron_regex="(nomina")
         assert resp.status_code == 422
 
+    def test_crear_regla_cuenta_inexistente_422(self, client, contexto):
+        # ERR-06: una regla de dominio (ValueError) debe responder 422, no 500.
+        ctx = contexto()
+        resp = _crear_regla(client, ctx, cuenta_debe="99999999")
+        assert resp.status_code == 422
+
     def test_procesar_importe_cero_no_crea_asiento(self, client, session, contexto):
         ctx = contexto()
         assert _crear_regla(client, ctx).status_code == 201

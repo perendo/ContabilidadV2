@@ -1,4 +1,4 @@
-﻿"""Tests de facturas, Libros Registro de IVA y Retenciones (spec 005, US1-US4).
+"""Tests de facturas, Libros Registro de IVA y Retenciones (spec 005, US1-US4).
 
 Los tests usan `contexto_fiscal` (PGC base + 4751) y verifican el asiento
 derivado: ΣDebe=ΣHaber, cuentas 400/430/600/700/472/477/4751 y agregados al

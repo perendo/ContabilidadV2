@@ -215,7 +215,9 @@ export default function SeleccionContexto() {
                   <TextField
                     label="CIF (9 caracteres)"
                     value={nuevaEmpresa.cif}
-                    onChange={(e) => setNuevaEmpresa((v) => ({ ...v, cif: e.target.value }))}
+                    onChange={(e) =>
+                      setNuevaEmpresa((v) => ({ ...v, cif: e.target.value.toUpperCase() }))
+                    }
                     inputProps={{ maxLength: 9 }}
                     required
                   />

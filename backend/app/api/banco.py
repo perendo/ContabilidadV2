@@ -1,4 +1,4 @@
-﻿import json
+import json
 import re
 from datetime import date
 from decimal import Decimal
