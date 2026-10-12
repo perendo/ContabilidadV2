@@ -8,6 +8,14 @@ const nextConfig = {
     "@emotion/styled",
     "@mui/material-nextjs",
   ],
+  async redirects() {
+    // Redirección a nivel de configuración (no un `redirect()` de Server
+    // Component). Un `redirect()` ejecutado durante una navegación cliente en el
+    // App Router dispara el bug de Next "Rendered more hooks than during the
+    // previous render" (vercel/next.js#63121). Aquí `/banco` se resuelve antes
+    // de renderizar React, por lo que la navegación cliente funciona.
+    return [{ source: "/banco", destination: "/banco/importar", permanent: false }];
+  },
   async rewrites() {
     return [
       {

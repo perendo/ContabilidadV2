@@ -119,19 +119,22 @@ def parse_excel_santander(file_bytes: bytes) -> list[MovimientoBancoIn]:
     for row in ws.iter_rows(min_row=header_row + 1, max_row=ws.max_row, values_only=True):
         if not row or not row[0]:
             continue
-        if not isinstance(row[0], (date, datetime)):
-            continue
 
-        fecha_operacion = (
-            row[0]
-            if isinstance(row[0], date)
-            else datetime.strptime(str(row[0]), "%d/%m/%Y").date()
-        )
-        fecha_valor = (
-            row[1]
-            if isinstance(row[1], date)
-            else datetime.strptime(str(row[1]), "%d/%m/%Y").date()
-        )
+        # Aceptar date/datetime o strings en formato DD/MM/YYYY
+        def parse_fecha(val):
+            if isinstance(val, date):
+                return val
+            if isinstance(val, str):
+                try:
+                    return datetime.strptime(val.strip(), "%d/%m/%Y").date()
+                except ValueError:
+                    return None
+            return None
+
+        fecha_operacion = parse_fecha(row[0])
+        fecha_valor = parse_fecha(row[1])
+        if not fecha_operacion or not fecha_valor:
+            continue
 
         # Importe puede venir como float o string
         importe_raw = row[3]
